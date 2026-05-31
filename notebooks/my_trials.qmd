@@ -5,7 +5,7 @@ editor: visual
 ---
 
 ```{r warning=FALSE, message=FALSE}
-#setwd("C:/Users/STEEVE/OneDrive/Desktop/Stage/geometric-depth-r")
+setwd("..")
 library(httr)
 library(jsonlite)
 library(dplyr)
@@ -74,12 +74,9 @@ head(raw[, c("PLAYER_NAME", "GAME_ID", "GAME_DATE", "LOC_X", "LOC_Y", "SHOT_MADE
 ## Test nba_data
 
 ```{r}
-shots <- nba_data(Player = "Giannis Antetokounmpo", season = 2019)
+shots <- nba_data(Player = "Giannis Antetokounmpo", season = 2022)
 #str(shots)
 head(shots)
-```
-
-```         
 ```
 
 ```{r}
@@ -96,5 +93,7 @@ library(transport)
 ```
 
 ```{r}
-plot_season(shots)
+# source("R/nba-functionsbis.R", echo = T)
+#plot_season(shots)
+nba_data_depth(shots)[1]
 ```
