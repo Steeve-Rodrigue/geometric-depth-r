@@ -77,7 +77,7 @@ nba_data <- function(Player, season, season_types = "Regular Season") {
       idGame     = as.factor(GAME_ID)
     )
 
-  yy <- data.frame(player=raw$PLAYER_NAME ,idGame=player$idGame, x=player$x, y=player$y, isShotMade=player$isShotMade)
+  yy <- data.frame(player=raw$PLAYER_NAME ,idGame=player$idGame, dateGame=player$GAME_DATE, x=player$x, y=player$y, isShotMade=player$isShotMade)
   attributes(yy)$namePlayer <- Player
   attributes(yy)$PLAYER_ID  <- player_id
   attributes(yy)$team        <- unique(raw$TEAM_NAME)[1]
@@ -87,15 +87,28 @@ nba_data <- function(Player, season, season_types = "Regular Season") {
 }
 
 # mise en forme data depth
+# nba_data_depth <- function(yy_df){
+#   yy <- lapply(split(yy_df,yy_df$idGame), function(x){
+#     list(typeEvent=x$isShotMade,coords=rbind(x$x,x$y))
+#   })
+#   attributes(yy)$namePlayer <- attr(yy_df,"namePlayer")
+#   attributes(yy)$PLAYER_ID  <- attr(yy_df,"PLAYER_ID")
+#   attributes(yy)$team        <- attr(yy_df,"team")
+#   attributes(yy)$TEAM_ID     <- attr(yy_df,"TEAM_ID")
+#   attributes(yy)$season      <- attr(yy_df,"season")
+#   yy
+# }
+
+
 nba_data_depth <- function(yy_df){
   yy <- lapply(split(yy_df,yy_df$idGame), function(x){
-    list(typeEvent=x$isShotMade,coords=rbind(x$x,x$y))
+    list(date = unique(x$dateGame),SHOT_MADE=x$isShotMade,coords=cbind(x$x,x$y))
   })
-  attributes(yy)$namePlayer <- attr(yy_df,"namePlayer")
-  attributes(yy)$PLAYER_ID  <- attr(yy_df,"PLAYER_ID")
-  attributes(yy)$team        <- attr(yy_df,"team")
-  attributes(yy)$TEAM_ID     <- attr(yy_df,"TEAM_ID")
-  attributes(yy)$season      <- attr(yy_df,"season")
+  attributes(yy)$namePlayer<-attr(yy_df,"namePlayer")
+  attributes(yy)$PLAYER_ID<-attr(yy_df,"PLAYER_ID")
+  attributes(yy)$team<- attr(yy_df,"team")
+  attributes(yy)$TEAM_ID<-attr(yy_df,"TEAM_ID")
+  attributes(yy)$season<-attr(yy_df,"season")
   yy
 }
 
@@ -179,8 +192,8 @@ plot_season <- function(data,x,y,pt.col=pt.col){
     draw_image(paste0("https://cdn.nba.com/headshots/nba/latest/1040x760/", attr(data,"PLAYER_ID"), ".png"), 
                x = -29, y = 1, width = 9, height = 9) +
     # ---- plot team logo (remove these 2 lines if you're plotting multiple teams!)
-    #draw_image(paste0("https://cdn.nba.com/logos/nba/", attr(data,"TEAM_ID"), "/primary/L/logo.svg"), 
-    #           x = 22, y = 1, width = 6, height = 6) +
+    draw_image(paste0("https://cdn.nba.com/logos/nba/", attr(data,"TEAM_ID"), "/primary/L/logo.svg"), 
+           x = 22, y = 1, width = 6, height = 6) +
     # ---- fill the points with color
     scale_color_manual(values = c("green4","red3"), aesthetics = "color", 
                        breaks=c("TRUE", "FALSE"), labels=c("Made", "Missed")) + 
