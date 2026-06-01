@@ -54,9 +54,8 @@ The primary application area is **spatial point processes**, including:
 
 geometric-depth-r/
 │
-├── R/              # reusable functions (geometry, depth, utilities)
-├── scripts/        # main analyses and experiments
-├── notebooks/      # explanatory analyses (Rmd / Quarto)
+├── R/              # reusable functions (geometry, depth, utilities)experiments
+├── notebooks/      # explanatory analyses (Rmd )
 ├── data/           # datasets
 ├── experiments/    # simulations and basketball studies
 ├── figures/        # saved plots
