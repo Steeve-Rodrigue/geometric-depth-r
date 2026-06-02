@@ -1,3 +1,11 @@
+#' Get NBA player ID from the stats API
+#'
+#' @param player_name Character. Full or partial player name (case-insensitive).
+#' @return Integer PERSON_ID of the first matching player.
+#' @examples
+#' \dontrun{
+#' get_player_id("LeBron James")  # 2544
+#' }
 get_player_id <- function(player_name) {
   resp <- httr::GET(
     "https://stats.nba.com/stats/commonallplayers",
@@ -25,7 +33,19 @@ get_player_id <- function(player_name) {
   if (nrow(match_row) == 0) stop(paste("Player not found:", player_name))
   as.integer(match_row$PERSON_ID[1])
 }
+#===========================================NBA_data==========================================================================
 
+#' Fetch shot chart data for an NBA player
+#'
+#' @param Player Character. Player name passed to \code{get_player_id}.
+#' @param season Integer. End year of the season (e.g. \code{2024} for 2023-24).
+#' @param season_types Character. One of \code{"Regular Season"}, \code{"Playoffs"}, etc.
+#' @return A data frame with columns \code{player}, \code{idGame}, \code{dateGame},
+#'   \code{x}, \code{y}, \code{SHOT_MADE}. Player metadata stored as attributes.
+#' @examples
+#' \dontrun{
+#' shots <- nba_data("LeBron James", 2024)
+#' }
 nba_data <- function(Player, season, season_types = "Regular Season") {
   # season = end year, e.g. 2019 -> "2018-19"
   season_str <- paste0(season - 1, "-", substr(as.character(season), 3, 4))
@@ -73,11 +93,11 @@ nba_data <- function(Player, season, season_types = "Regular Season") {
     mutate(
       x          = as.numeric(LOC_X) / 10 * -1,
       y          = as.numeric(LOC_Y) / 10 - 41.75,
-      isShotMade = SHOT_MADE_FLAG == "1",
+      SHOT_MADE = SHOT_MADE_FLAG == "1",
       idGame     = as.factor(GAME_ID)
     )
 
-  yy <- data.frame(player=raw$PLAYER_NAME ,idGame=player$idGame, dateGame=player$GAME_DATE, x=player$x, y=player$y, isShotMade=player$isShotMade)
+  yy <- data.frame(player=raw$PLAYER_NAME ,idGame=player$idGame, dateGame=player$GAME_DATE, x=player$x, y=player$y, SHOT_MADE=player$SHOT_MADE)
   attributes(yy)$namePlayer <- Player
   attributes(yy)$PLAYER_ID  <- player_id
   attributes(yy)$team        <- unique(raw$TEAM_NAME)[1]
@@ -85,24 +105,26 @@ nba_data <- function(Player, season, season_types = "Regular Season") {
   attributes(yy)$season      <- season
   return(yy)
 }
+#=================================================NBA_data_depth====================================================================
 
-# mise en forme data depth
-# nba_data_depth <- function(yy_df){
-#   yy <- lapply(split(yy_df,yy_df$idGame), function(x){
-#     list(typeEvent=x$isShotMade,coords=rbind(x$x,x$y))
-#   })
-#   attributes(yy)$namePlayer <- attr(yy_df,"namePlayer")
-#   attributes(yy)$PLAYER_ID  <- attr(yy_df,"PLAYER_ID")
-#   attributes(yy)$team        <- attr(yy_df,"team")
-#   attributes(yy)$TEAM_ID     <- attr(yy_df,"TEAM_ID")
-#   attributes(yy)$season      <- attr(yy_df,"season")
-#   yy
-# }
-
-
+#' Reshape shot data into a per-game list for depth analysis
+#'
+#' Splits the flat shot data frame from \code{nba_data()} by game and converts
+#' each game into a list containing the shot coordinates as a matrix, the made/missed
+#' flags, and the game date. The result is the input format expected by depth functions.
+#'
+#' @param yy_df Data frame returned by \code{nba_data()}.
+#' @return A named list (one element per game) where each element contains:
+#'   \code{date}, \code{SHOT_MADE} (logical vector), \code{coords} (n x 2 matrix of x/y).
+#'   Player metadata attributes are preserved.
+#' @examples
+#' \dontrun{
+#' shots <- nba_data("LeBron James", 2024)
+#' lb <- nba_data_depth(shots)
+#' }
 nba_data_depth <- function(yy_df){
   yy <- lapply(split(yy_df,yy_df$idGame), function(x){
-    list(date = unique(x$dateGame),SHOT_MADE=x$isShotMade,coords=cbind(x$x,x$y))
+    list(date = unique(x$dateGame),SHOT_MADE=x$SHOT_MADE,coords=cbind(x$x,x$y))
   })
   attributes(yy)$namePlayer<-attr(yy_df,"namePlayer")
   attributes(yy)$PLAYER_ID<-attr(yy_df,"PLAYER_ID")
@@ -111,37 +133,64 @@ nba_data_depth <- function(yy_df){
   attributes(yy)$season<-attr(yy_df,"season")
   yy
 }
+#=================================================NBA_data_depth_made====================================================================
 
+#' Filter per-game shot data to made shots only
+#'
+#' From the list returned by \code{nba_data_depth()}, keeps only the coordinates
+#' of made shots for each game. Games with no made shots are dropped.
+#'
+#' @param yy Named list returned by \code{nba_data_depth()}.
+#' @return A filtered list with the same structure as \code{yy}, where each
+#'   element contains only \code{coords} of made shots. Player metadata attributes
+#'   are preserved.
+#' @examples
+#' \dontrun{
+#' lb <- nba_data_depth(shots)
+#' lb_made <- nba_data_depth_made(lb)
+#' }
 nba_data_depth_made <- function(yy){
   temp <- lapply(yy, function(x){
-    coords=x$coords[,x$typeEvent]
+    coords=x$coords[x$SHOT_MADE,]
     if(is.null(nrow(coords))){
-      coords <- as.matrix(coords,ncol=1,nrow=2)
+      coords <- matrix(coords,ncol=2,nrow=1)
     }
     if(nrow(coords)==0){
-      coords <- NULL
+      x <- NULL
     }
-    list(coords=coords)})
-  temp[sapply(temp,function(x) ncol(x$coords)==0)] <- NULL
+    list(date=x$date,coords=coords)})
+  #temp[sapply(temp,function(x) is.null(x$coords))] <- NULL
   attributes(temp)$namePlayer <- attr(yy,"namePlayer")
-  attributes(temp)$PLAYER_ID  <- attr(yy,"PLAYER_ID")
-  attributes(temp)$team        <- attr(yy,"team")
-  attributes(temp)$TEAM_ID     <- attr(yy,"TEAM_ID")
-  attributes(temp)$season      <- attr(yy,"season")
   temp
 }
+
+#=================================================NBA_data_depth_missed====================================================================
+#' Filter per-game shot data to missed shots only
+#'
+#' From the list returned by \code{nba_data_depth()}, keeps only the coordinates
+#' of missed shots for each game. Games with no missed shots are dropped.
+#'
+#' @param yy Named list returned by \code{nba_data_depth()}.
+#' @return A filtered list with the same structure as \code{yy}, where each
+#'   element contains only \code{coords} of missed shots. Player metadata attributes
+#'   are preserved.
+#' @examples
+#' \dontrun{
+#' lb <- nba_data_depth(shots)
+#' lb_missed <- nba_data_depth_missed(lb)
+#' }
 
 nba_data_depth_missed <- function(yy){
   temp <- lapply(yy, function(x){
-    coords=x$coords[,!x$typeEvent]
+    coords=x$coords[!x$SHOT_MADE,]
     if(is.null(nrow(coords))){
-      coords <- as.matrix(coords,ncol=1,nrow=2)
+      coords <- matrix(coords,ncol=2,nrow=1)
     }
     if(nrow(coords)==0){
-      coords <- NULL
+      x <- NULL
     }
-    list(coords=coords)})
-  temp[sapply(temp,function(x) ncol(x$coords)==0)] <- NULL
+    list(date = x$date,coords=coords)})
+  #temp[sapply(temp,function(x) nrow(x$coords)==0)] <- NULL
   attributes(temp)$namePlayer <- attr(yy,"namePlayer")
   attributes(temp)$PLAYER_ID  <- attr(yy,"PLAYER_ID")
   attributes(temp)$team        <- attr(yy,"team")
@@ -149,13 +198,111 @@ nba_data_depth_missed <- function(yy){
   attributes(temp)$season      <- attr(yy,"season")
   temp
 }
+
+#=================================================NBA_depth_plot====================================================================
+
+#' Depth-vs-Depth plot comparing two groups of shots
+#'
+#' Computes the Tukey (halfspace) depth of every shot relative to both groups
+#' (e.g. missed \code{xx} vs made \code{yy}) and plots one against the other.
+#' Points near the diagonal indicate the two spatial distributions are similar;
+#' points off it indicate they differ.
+#'
+#' @param xx Per-game shot lists (from \code{nba_data_depth_missed})
+#' @param yy Per-game shot lists (from \code{nba_data_depth_made}) 
+#' @param Ndirs Integer. Number of random directions for the depth approximation.
+#' @param col Length-2 colour vector for the \code{xx} and \code{yy} points.
+#' @param parConst1,parConst2 Tuning constants passed to \code{depths.Tukey}.
+#' @param package Logical. \code{TRUE} uses \code{curveDepth::depths.Tukey};
+#'   \code{FALSE} uses the internal \code{ppdepth}.
+#' @return A list of the four depth vectors: \code{XvsX}, \code{YvsY},
+#'   \code{XvsY}, \code{YvsX}. Also draws the DD-plot as a side effect.
+#' @examples
+#' \dontrun{
+#' out <- ddplot_nba(lb_missed, lb_made, Ndirs = 250, parConst1 = -2, parConst2 = 5)
+#' }
+ddplot_nba <- function(xx,yy,Ndirs,col=c("red","green4"),
+                       parConst1 = -1, parConst2 = 5, package=TRUE){
+  if(package){
+    depthsXvsX <- depths.Tukey(xx, xx, nDirs = curNdirs, subs = FALSE, exactEst = FALSE, parConst1 = parConst1, parConst2 = parConst2)
+    depthsXvsY <- depths.Tukey(xx, yy, nDirs = curNdirs, subs = FALSE, exactEst = FALSE, parConst1 = parConst1, parConst2 = parConst2)
+    depthsYvsX <- depths.Tukey(yy, xx, nDirs = curNdirs, subs = FALSE, exactEst = FALSE, parConst1 = parConst1, parConst2 = parConst2)
+    depthsYvsY <- depths.Tukey(yy, yy, nDirs = curNdirs, subs = FALSE, exactEst = FALSE, parConst1 = parConst1, parConst2 = parConst2)  
+  }else{
+    xx <- lapply(xx, function(x){list(coords=t(x$coords))})
+    yy <- lapply(yy, function(x){list(coords=t(x$coords))})
+    
+    depthsXvsX <- ppdepth(xx,xx,Ndirs)
+    depthsXvsY <- ppdepth(xx,yy,Ndirs)
+    depthsYvsX <- ppdepth(yy,xx,Ndirs)
+    depthsYvsY <- ppdepth(yy,yy,Ndirs)
+  }
+  depthsVsX <- c(depthsXvsX, depthsYvsX)
+  depthsVsY <- c(depthsXvsY, depthsYvsY)
+  plot(cbind(depthsVsX, depthsVsY), col = c(rep(col[1], length(depthsXvsX)), 
+                                            rep(col[2], length(depthsYvsY))),
+       xlab = "Depth in missed", ylab = "Depth in made", pch = 19, 
+       xlim = c(0, 1), ylim = c(0, 1), 
+       main = " " )
+  grid()
+  list(XvsX=depthsXvsX,YvsY=depthsYvsY,XvsY=depthsXvsY,YvsX=depthsYvsX)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 plot_match <- function(data,idMatch){
   temp<- data[idMatch][[1]]
-  don <- data.frame(isShotMade=temp$typeEvent,x=temp$coord[1,],y=temp$coord[2,])
+  don <- data.frame(SHOT_MADE=temp$typeEvent,x=temp$coord[1,],y=temp$coord[2,])
   p1 <- plot_court(court_themes$ppt, use_short_three = F) + 
-    geom_point(data = don, aes(x = x, y = y, color = isShotMade, fill = isShotMade), size =2, shape = 21, stroke = .5) + 
+    geom_point(data = don, aes(x = x, y = y, color = SHOT_MADE, fill = SHOT_MADE), size =2, shape = 21, stroke = .5) + 
     scale_color_manual(values = c("green4","red3"), aesthetics = "color", breaks=c("TRUE", "FALSE"), labels=c("Made", "Missed")) + 
     scale_fill_manual(values = c("green2","gray20"), aesthetics = "fill", breaks=c("TRUE", "FALSE"), labels=c("Made", "Missed")) + 
     scale_x_continuous(limits = c(-27.5, 27.5)) + scale_y_continuous(limits = c(0, 45)) + theme(legend.position="none") #+ 
@@ -187,7 +334,7 @@ plot_season <- function(data,x,y,pt.col=pt.col){
   p <- ggplot(data = data.frame(x = 0, y = 0), aes(x, y))
   p <- drawNBAcourt(p, full = FALSE, size = 0.75, col = "black")
   p <- p + 
-    geom_point(data = data, aes(x = x, y = y, color = isShotMade, fill = isShotMade), 
+    geom_point(data = data, aes(x = x, y = y, color = SHOT_MADE, fill = SHOT_MADE), 
                size =1, shape = 21, stroke = .5) +
     draw_image(paste0("https://cdn.nba.com/headshots/nba/latest/1040x760/", attr(data,"PLAYER_ID"), ".png"), 
                x = -29, y = 1, width = 9, height = 9) +
@@ -236,33 +383,6 @@ ppdepth <- function(objs,data,nDir){
   out
 }
 
-
-ddplot_nba <- function(xx,yy,Ndirs,col=c("red","green4"),
-                       parConst1 = -1, parConst2 = 5, package=TRUE){
-  if(package){
-    depthsXvsX <- depths.Tukey(xx, xx, nDirs = curNdirs, subs = FALSE, exactEst = FALSE, parConst1 = parConst1, parConst2 = parConst2)
-    depthsXvsY <- depths.Tukey(xx, yy, nDirs = curNdirs, subs = FALSE, exactEst = FALSE, parConst1 = parConst1, parConst2 = parConst2)
-    depthsYvsX <- depths.Tukey(yy, xx, nDirs = curNdirs, subs = FALSE, exactEst = FALSE, parConst1 = parConst1, parConst2 = parConst2)
-    depthsYvsY <- depths.Tukey(yy, yy, nDirs = curNdirs, subs = FALSE, exactEst = FALSE, parConst1 = parConst1, parConst2 = parConst2)  
-  }else{
-    xx <- lapply(xx, function(x){list(coords=t(x$coords))})
-    yy <- lapply(yy, function(x){list(coords=t(x$coords))})
-    
-    depthsXvsX <- ppdepth(xx,xx,Ndirs)
-    depthsXvsY <- ppdepth(xx,yy,Ndirs)
-    depthsYvsX <- ppdepth(yy,xx,Ndirs)
-    depthsYvsY <- ppdepth(yy,yy,Ndirs)
-  }
-  depthsVsX <- c(depthsXvsX, depthsYvsX)
-  depthsVsY <- c(depthsXvsY, depthsYvsY)
-  plot(cbind(depthsVsX, depthsVsY), col = c(rep(col[1], length(depthsXvsX)), 
-                                            rep(col[2], length(depthsYvsY))),
-       xlab = "Depth vs. red", ylab = "Depth vs. blue", pch = 19, 
-       xlim = c(0, 1), ylim = c(0, 1), 
-       main = " " )
-  grid()
-  list(XvsX=depthsXvsX,YvsY=depthsYvsY,XvsY=depthsXvsY,YvsX=depthsYvsX)
-}
 
 deepest_match <- function(xx,depth,no,col="red"){
   n <- length(depth)
