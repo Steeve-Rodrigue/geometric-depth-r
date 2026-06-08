@@ -91,13 +91,13 @@ nba_data <- function(Player, season, season_types = "Regular Season") {
   # API returns coordinates in tenths of a foot
   player <- raw %>%
     mutate(
-      x          = as.numeric(LOC_X) / 10 * -1,
-      y          = as.numeric(LOC_Y) / 10 - 41.75,
+      LOC_X          = as.numeric(LOC_X) / 10 * -1,
+      LOC_Y          = as.numeric(LOC_Y) / 10 - 41.75,
       SHOT_MADE = SHOT_MADE_FLAG == "1",
       idGame     = as.factor(GAME_ID)
     )
 
-  yy <- data.frame(player=raw$PLAYER_NAME ,idGame=player$idGame, dateGame=player$GAME_DATE, x=player$x, y=player$y, SHOT_MADE=player$SHOT_MADE)
+  yy <- data.frame(player=raw$PLAYER_NAME ,idGame=player$idGame, dateGame=player$GAME_DATE, LOC_X=player$LOC_X, LOC_Y=player$LOC_Y, SHOT_MADE=player$SHOT_MADE)
   attributes(yy)$namePlayer <- Player
   attributes(yy)$PLAYER_ID  <- player_id
   attributes(yy)$team        <- unique(raw$TEAM_NAME)[1]
@@ -124,7 +124,7 @@ nba_data <- function(Player, season, season_types = "Regular Season") {
 #' }
 nba_data_depth <- function(yy_df){
   yy <- lapply(split(yy_df,yy_df$idGame), function(x){
-    list(date = unique(x$dateGame),SHOT_MADE=x$SHOT_MADE,coords=cbind(x$x,x$y))
+    list(date = unique(x$dateGame),SHOT_MADE=x$SHOT_MADE,coords=cbind(x$LOC_X,x$LOC_Y))
   })
   attributes(yy)$namePlayer<-attr(yy_df,"namePlayer")
   attributes(yy)$PLAYER_ID<-attr(yy_df,"PLAYER_ID")
@@ -243,78 +243,117 @@ ddplot_nba <- function(xx,yy,Ndirs,col=c("red","green4"),
                                             rep(col[2], length(depthsYvsY))),
        xlab = "Depth in missed", ylab = "Depth in made", pch = 19, 
        xlim = c(0, 1), ylim = c(0, 1), 
-       main = " " )
+       main = paste0("DD-plot — ", attr(xx, "namePlayer"), " (", attr(xx, "season"), ")")
+
+       )
   grid()
   list(XvsX=depthsXvsX,YvsY=depthsYvsY,XvsY=depthsXvsY,YvsX=depthsYvsX)
 }
+#==============================================deepest_match====================================================================
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-plot_match <- function(data,idMatch){
-  temp<- data[idMatch][[1]]
-  don <- data.frame(SHOT_MADE=temp$typeEvent,x=temp$coord[1,],y=temp$coord[2,])
-  p1 <- plot_court(court_themes$ppt, use_short_three = F) + 
-    geom_point(data = don, aes(x = x, y = y, color = SHOT_MADE, fill = SHOT_MADE), size =2, shape = 21, stroke = .5) + 
-    scale_color_manual(values = c("green4","red3"), aesthetics = "color", breaks=c("TRUE", "FALSE"), labels=c("Made", "Missed")) + 
-    scale_fill_manual(values = c("green2","gray20"), aesthetics = "fill", breaks=c("TRUE", "FALSE"), labels=c("Made", "Missed")) + 
-    scale_x_continuous(limits = c(-27.5, 27.5)) + scale_y_continuous(limits = c(0, 45)) + theme(legend.position="none") #+ 
-  #theme(legend.text = element_text(size=5), #legend.title = element_text(size=7),
-  #      legend.position.inside = c(.5, .85), legend.direction = "horizontal", 
-  #      legend.title = element_blank(),
-  #      plot.background = element_rect(fill="gray20", color = NA)) 
-  #ggdraw(p1) + theme(plot.background = element_rect(fill="gray20", color = NA))
-  p1
+#' Return the n-th deepest game of one shot process (made OR missed)
+#'
+#' Ranks the games of a single shot process by their depth and returns the game
+#' at rank \code{no} from the top: \code{no = 1} is the deepest (most typical)
+#' game, \code{no = 2} the second, and so on. The depth is relative to whichever
+#' process is supplied, so \code{xx} and \code{depth} must come from the SAME
+#' process (both made, or both missed).
+#'
+#' @param xx Per-game shot list for one process: made (\code{nba_data_depth_made})
+#'   or missed (\code{nba_data_depth_missed}).
+#' @param depth Numeric depth vector for that same process, one value per game,
+#'   e.g. \code{ddplot_nba(...)$YvsY} for made or \code{$XvsX} for missed.
+#' @param no Integer rank from the deepest game (1 = most central/typical).
+#' @return The selected game as a list (\code{date}, \code{coords}), with the
+#'   game id (\code{idmatch}) and player name (\code{player}) attached.
+#' @examples
+#' \dontrun{
+#' out <- ddplot_nba(lb_missed, lb_made)
+#' deepest_match(lb_made,   out$YvsY, no = 1)  # most typical MADE-shot game
+#' deepest_match(lb_missed, out$XvsX, no = 1)  # most typical MISSED-shot game
+#' }
+deepest_match <- function(xx,depth,no){
+  n <- length(depth)
+  deepest <- order(depth)
+  idMatch <- names(xx)[deepest[n-no+1]]
+  temp <- xx[idMatch][[1]]
+  temp$idmatch <- idMatch
+  temp$player  <- attr(xx,"namePlayer")
+  temp
+}
+#==============================================plot_deepest_match====================================================================
+#' Plot the shot chart of the n-th deepest game
+#'
+#' Convenience wrapper that selects the n-th deepest game with
+#' \code{deepest_match()} and draws its shot chart via \code{plot_match2()}.
+#' The same \code{xx}/\code{depth} pairing rule applies (both made, or both missed).
+#'
+#' @inheritParams deepest_match
+#' @param col Point colour for the shot chart.
+#' @return A ggplot object of the selected game's shot chart.
+#' @examples
+#' \dontrun{
+#' out <- ddplot_nba(lb_missed, lb_made)
+#' plot_deepest_match(lb_made, out$YvsY, no = 1, col = "green4")
+#' }
+plot_deepest_match <- function(xx,depth,no,col="blue"){
+  game <- deepest_match(xx, depth, no)
+  plot_match2(xx, game$idmatch, col=col)
 }
 
-plot_match2 <- function(data,idMatch,col='lightblue'){
+#==============================================plot_match====================================================================
+
+#' Plot a single game's shot chart, coloured by made/missed
+#'
+#' Draws all shots of one game on a half-court, colouring made shots green and
+#' missed shots red. Expects a game from \code{nba_data_depth()} (unfiltered, so
+#' the \code{SHOT_MADE} flag is still present).
+#'
+#' @param data Per-game shot list from \code{nba_data_depth()}.
+#' @param idMatch Name (game id) of the game to plot.
+#' @return A ggplot object of the game's shot chart.
+#' @examples
+#' \dontrun{
+#' lb <- nba_data_depth(shots)
+#' plot_match(lb, names(lb)[1])
+#' }
+plot_match <- function(data, idMatch){
+  temp <- data[[idMatch]]
+  don  <- data.frame(SHOT_MADE = temp$SHOT_MADE,
+                     x = temp$coords[, 1],
+                     y = temp$coords[, 2])
+  p <- ggplot(data = data.frame(x = 0, y = 0), aes(x, y))
+  p <- drawNBAcourt(p, full = FALSE, size = 0.75, col = "black")
+  p +
+    geom_point(data = don, aes(x = x, y = y, color = SHOT_MADE, fill = SHOT_MADE),
+               size = 2, shape = 21, stroke = .5) +
+    scale_color_manual(values = c("green4", "red3"), aesthetics = "color",
+                       breaks = c("TRUE", "FALSE"), labels = c("Made", "Missed")) +
+    scale_fill_manual(values = c("green2", "gray20"), aesthetics = "fill",
+                      breaks = c("TRUE", "FALSE"), labels = c("Made", "Missed")) +
+    scale_x_continuous(limits = c(-27.5, 27.5)) +
+    scale_y_continuous(limits = c(-47.5, 7.5)) +
+    theme(legend.position = "none",
+          axis.title.x = element_blank(), axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+          axis.title.y = element_blank(), axis.text.y = element_blank(), axis.ticks.y = element_blank())
+}
+#==============================================plot_match2====================================================================
+#' Plot a single game's shot chart in one colour
+#'
+#' Draws all shots of one game on a half-court as same-coloured dots. Unlike
+#' \code{plot_match()}, it does not distinguish made/missed — use it on data
+#' already filtered to a single process (made or missed).
+#'
+#' @param data Per-game shot list (e.g. from \code{nba_data_depth_made}/\code{_missed}).
+#' @param idMatch Name (game id) of the game to plot.
+#' @param col Point colour.
+#' @return A ggplot object of the game's shot chart.
+#' @examples
+#' \dontrun{
+#' lb_made <- nba_data_depth_made(nba_data_depth(shots))
+#' plot_match2(lb_made, names(lb_made)[1], col = "green4")
+#' }
+plot_match2 <- function(data,idMatch,col='blue'){
   temp<- data[idMatch][[1]]
   don <- data.frame(x=temp$coord[,1],y=temp$coord[,2])
   
@@ -329,7 +368,23 @@ plot_match2 <- function(data,idMatch,col='lightblue'){
           axis.ticks.y=element_blank())
   p
 }
-
+#==============================================plot_season====================================================================
+#' Plot a player's full-season shot chart with headshot and team logo
+#'
+#' Draws every shot of a season on a half-court, coloured by made/missed, and
+#' overlays the player's headshot and team logo (fetched from NBA CDN URLs built
+#' from the \code{PLAYER_ID}/\code{TEAM_ID} attributes).
+#'
+#' @param data Shot data frame from \code{nba_data()}, with \code{x}, \code{y},
+#'   \code{SHOT_MADE} columns and \code{PLAYER_ID}/\code{TEAM_ID} attributes.
+#' @param x,y,pt.col Unused legacy arguments (coordinates and colour are taken
+#'   from \code{data} directly).
+#' @return A ggplot object of the season shot chart.
+#' @examples
+#' \dontrun{
+#' shots <- nba_data("LeBron James", 2024)
+#' plot_season(shots)
+#' }
 plot_season <- function(data,x,y,pt.col=pt.col){
   p <- ggplot(data = data.frame(x = 0, y = 0), aes(x, y))
   p <- drawNBAcourt(p, full = FALSE, size = 0.75, col = "black")
@@ -352,7 +407,21 @@ plot_season <- function(data,x,y,pt.col=pt.col){
           axis.ticks.y=element_blank())
   p  
 }
-
+#NON-EXPORTED
+#==============================================ppdepth====================================================================
+#
+#' Halfspace depth of one point pattern (non-package version)
+#'
+#' Internal building block of the from-scratch (non-\code{curveDepth}) depth used
+#' by \code{ddplot_nba(..., package = FALSE)}. Computes the Tukey/halfspace depth
+#' of a single object's point pattern relative to a reference set, as the mean
+#' over its points of the minimum over directions of \code{Qn/mu}.
+#'
+#' @param obj One object with a \code{coords} matrix (2 x n: rows x/y).
+#' @param data Reference list of objects, each with a \code{coords} matrix.
+#' @param Dir 2 x nDir matrix of unit direction vectors (rows cos/sin).
+#' @return A single numeric depth value for \code{obj}.
+#' @keywords internal
 ppOnedepth <- function(obj,data,Dir){
   m <- ncol(obj$coords)
   out <- numeric(m)
@@ -368,6 +437,19 @@ ppOnedepth <- function(obj,data,Dir){
   mean(out)
 }
 
+#' Halfspace depth of several point patterns (non-package version)
+#'
+#' From-scratch (non-\code{curveDepth}) point-process depth, used by
+#' \code{ddplot_nba(..., package = FALSE)} as the alternative to
+#' \code{depths.Tukey}. Draws \code{nDir} random directions on the unit circle
+#' and returns the halfspace depth of each object in \code{objs} relative to
+#' \code{data}, via \code{ppOnedepth}.
+#'
+#' @param objs List of objects whose depth is wanted (each with a \code{coords} matrix).
+#' @param data Reference list of objects forming the distribution.
+#' @param nDir Integer. Number of random directions for the approximation.
+#' @return Numeric vector of depths, one per object in \code{objs}.
+#' @keywords internal
 ppdepth <- function(objs,data,nDir){
   # taille des objets
   n <- length(data)  # taille données
@@ -383,10 +465,4 @@ ppdepth <- function(objs,data,nDir){
   out
 }
 
-
-deepest_match <- function(xx,depth,no,col="red"){
-  n <- length(depth)
-  deepest <- order(depth) ; 
-  plot_match2(xx,names(xx)[deepest[n-no+1]],col=col)
-}
 

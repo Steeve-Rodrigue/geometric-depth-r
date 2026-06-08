@@ -9,7 +9,55 @@ library(httr)
 library(jsonlite)
 library(dplyr)
 
-source("../R/nba-functions.R") #add echo = T to see more details
+source("../R/nba-functions.R")
+source('../R/nba_functions_database.R', chdir = TRUE)
+#add echo = T to see more details
+```
+
+```{r}
+curry_db <- nba_player_db(
+   Player     = "Stephen Curry",
+   seasons    = 2015:2015,
+   export_csv = TRUE
+ )
+```
+
+```{r}
+curry_db <- nba_data_csv("Stephen_Curry_2010_2014.csv",2010
+)
+curry_db
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
 ```
 
 ## Test get_player_id
@@ -73,6 +121,12 @@ head(raw[, c("PLAYER_NAME", "GAME_ID", "GAME_DATE", "LOC_X", "LOC_Y", "SHOT_MADE
 ## Test nba_data
 
 ```{r}
+shots <- nba_data(Player = "stephen curry", season = 2022)
+#str(shots)
+head(shots)
+```
+
+```{r}
 library(ggplot2)
 library(gridExtra)
 library(ggpubr) # sudo apt-get install liblapack-dev libblas-dev gfortran
@@ -84,23 +138,6 @@ library(extrafont)
 library(cowplot)
 library(transport)
 library(curveDepth)
-```
-
-```{r}
-source("../R/nba-functions.R") #add echo = T to see more details
-shots <- nba_data(Player = "Giannis Antetokounmpo", season = 2019)
-#str(shots)
-head(shots)
-data = nba_data_depth(shots)
-p_made = nba_data_depth_made(data)
-p_missed = nba_data_depth_missed(data)
-curNdirs <- 250
-figure <- ddplot_nba(p_missed, p_made,Ndirs = curNdirs,
-                  parConst1 = -2, parConst2 = 5) 
-```
-
-```{r}
-shots[shots$dateGame == "20190324",]
 ```
 
 ```{r}
@@ -119,15 +156,4 @@ source("../R/nba-functions.R")
 curNdirs <- 250
 figure <- ddplot_nba(p_missed, p_made,Ndirs = curNdirs,
                   parConst1 = -2, parConst2 = 5) 
-```
-
-```{r}
-deep_match = deepest_match(data, figure$YvsY, no = 1)
-deep_match
-```
-
-```{r}
-source("../R/nba-functions.R")
-plot_match(data,deep_match$idmatch)
-#data[deep_match$idmatch]
 ```
