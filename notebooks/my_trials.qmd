@@ -87,8 +87,8 @@ library(curveDepth)
 ```
 
 ```{r}
-source("../R/nba-functions.R") #add echo = T to see more details
-shots <- nba_data(Player = "Giannis Antetokounmpo", season = 2019)
+source("../R/nba-functions.R") #add echo = T to see more details ##Rudy Gobert 
+shots <- nba_data(Player = "Bam Adebayo", season = 2019)
 #str(shots)
 head(shots)
 data = nba_data_depth(shots)
@@ -97,32 +97,18 @@ p_missed = nba_data_depth_missed(data)
 curNdirs <- 250
 figure <- ddplot_nba(p_missed, p_made,Ndirs = curNdirs,
                   parConst1 = -2, parConst2 = 5) 
+deepestx <- order(figure$XvsX) ; 
+deepesty <- order(figure$YvsY) ; 
+plot(figure$YvsY[deepesty],type='h',main="Marked Shots")
+plot(figure$XvsX[deepestx],type='h',main="Missed Shots")
 ```
 
 ```{r}
-shots[shots$dateGame == "20190324",]
+plot_season(shots,shots$LOC_X, shots$LOC_Y)
 ```
 
 ```{r}
-# source("R/nba-functionsbis.R", echo = T)
-data = nba_data_depth(shots)
-```
-
-```{r}
-p_made = nba_data_depth_made(data)
-p_missed = nba_data_depth_missed(data)
-#"made" ;p_made;"missed";p_missed
-```
-
-```{r}
-source("../R/nba-functions.R")
-curNdirs <- 250
-figure <- ddplot_nba(p_missed, p_made,Ndirs = curNdirs,
-                  parConst1 = -2, parConst2 = 5) 
-```
-
-```{r}
-deep_match = deepest_match(data, figure$YvsY, no = 1)
+deep_match = deepest_match(p_made, figure$YvsY, no =1 )
 deep_match
 ```
 
@@ -130,4 +116,115 @@ deep_match
 source("../R/nba-functions.R")
 plot_match(data,deep_match$idmatch)
 #data[deep_match$idmatch]
+```
+
+```{r}
+# date des outliers
+outliers0 <- names(p_made)[deepestx[1:3]]
+outliers1 <- names(p_missed)[deepesty[1:3]]
+
+unique(shots$dateGame[which(shots$idGame %in% outliers0)])
+unique(shots$dateGame[which(shots$idGame %in% outliers1)])
+# Le 3 avril, il enregistre 45 points 
+plot_match2(p_made,names(data)[deepesty[2]])
+```
+
+```{r}
+# --- joueurs et saisons ------------------------------------------------------
+players <- c("Bam Adebayo", "Giannis Antetokounmpo","stephen curry")
+seasons <- c(2019,2019,2019)
+# --- calcul des profondeurs par joueur ---------------------------------------
+depths_by_player <- lapply(seq_along(players), function(i) {
+  cat(sprintf("Processing %s (season %d) ...\n", players[i], seasons[i]))
+  shots  <- nba_data(Player = players[i], season = seasons[i])
+  data   <- nba_data_depth(shots)
+  depths <- depth_all_matches(
+    matches   = data,
+    Ndirs     = 250,
+    parConst1 = -1,
+    parConst2 = 5,
+    package   = TRUE
+  )
+  depths
+})
+
+# labels <- paste0(players, "\n(", seasons, ")")
+labels <- paste0(players)
+names(depths_by_player) <- labels
+
+```
+
+```{r}
+# --- visualisation -----------------------------------------------------------
+# postscript("../figures/boxplot.eps",
+#            horizontal = FALSE,
+#            onefile    = FALSE,
+#            paper      = "special",
+#            width      = 10,
+#            height     = 5)
+par(mar = c(4, 4, 0.2, 0.2))
+boxplot(depths_by_player,
+       # col     = c("steelblue", "firebrick", "gold", "seagreen"),
+        ylab    = "Tukey depth",
+        main    = "",
+        las     = 1,
+        border  = "grey30",
+       cex.axis = 1,
+        outline = TRUE)
+abline(h = 0.5, lty = 2, col = "grey50")
+# dev.off()
+```
+
+```{r}
+depths_by_player[[1]]
+```
+
+```{r}
+players <- list(
+  list(name = "Bam Adebayo",         season = 2020),
+  list(name = "Giannis Antetokounmpo", season = 2020),
+  list(name = "stephen curry",           season = 2020)
+)
+
+shots_by_player <- lapply(players, function(p) {
+  nba_data(Player = p$name, season = p$season)
+})
+names(shots_by_player) <- sapply(players, function(p) p$name)
+
+data_by_player <- lapply(shots_by_player, nba_data_depth)
+```
+
+```{r}
+d_m <- deepest_match(data_by_player[[1]],depths_by_player[[1]] , no = 1)
+```
+
+```{r}
+plot_deepest_match(data_by_player[[3]],depths_by_player[[3]] , no = 62)
+```
+
+```{r}
+# postscript("../figures/deepest_matches.eps",
+#            horizontal = FALSE,
+#            onefile    = FALSE,
+#            paper      = "special",
+#            width      = 15,
+#            height     = 10)
+  library(patchwork)
+  
+  title_theme <- theme(plot.title = element_text(size = 14, hjust = 0, vjust = 0))
+  
+  p1 <- plot_deepest_match(data_by_player[[1]], depths_by_player[[1]], no = 1) + ggtitle(names(data_by_player)[1]) + title_theme
+  p2 <- plot_deepest_match(data_by_player[[2]], depths_by_player[[2]], no = 1) + ggtitle(names(data_by_player)[2]) + title_theme
+  p3 <- plot_deepest_match(data_by_player[[3]], depths_by_player[[3]], no = 1) + ggtitle(names(data_by_player)[3]) + title_theme
+  
+  n1 <- length(data_by_player[[1]])
+  n2 <- length(data_by_player[[2]])
+  n3 <- length(data_by_player[[3]])
+  
+  p4 <- plot_deepest_match(data_by_player[[1]], depths_by_player[[1]], no = n1) + ggtitle(names(data_by_player)[1]) + title_theme
+  p5 <- plot_deepest_match(data_by_player[[2]], depths_by_player[[2]], no = n2) + ggtitle(names(data_by_player)[2]) + title_theme
+  p6 <- plot_deepest_match(data_by_player[[3]], depths_by_player[[3]], no = n3) + ggtitle(names(data_by_player)[3]) + title_theme
+  
+  (p1 | p2 | p3) / (p4 | p5 | p6) 
+#dev.off()
 ```

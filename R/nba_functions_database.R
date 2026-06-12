@@ -36,7 +36,7 @@ nba_player_db <- function(
       stringsAsFactors = FALSE
     )
     
-    Sys.sleep(8)  # pause between seasons to avoid rate limiting
+    Sys.sleep(2)  # pause between seasons to avoid rate limiting
     result
   })
   

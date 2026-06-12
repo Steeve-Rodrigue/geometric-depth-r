@@ -16,32 +16,35 @@ source('../R/nba_functions_database.R', chdir = TRUE)
 
 ```{r}
 curry_db <- nba_player_db(
-   Player     = "Stephen Curry",
-   seasons    = 2015:2015,
+   Player     = "Evan Fournier",
+   seasons    = 2015:2024,
    export_csv = TRUE
  )
 ```
 
+curry_db \<- nba_data_csv("Stephen_Curry_2010_2014.csv",2010)
+
+curry_db
+
 ```{r}
-curry_db <- nba_data_csv("Stephen_Curry_2010_2014.csv",2010
-)
+curry_db <- nba_data_csv("Stephen_Curry_2015_2022.csv",2017)
+```
+
+```{r}
 curry_db
 ```
 
 ```{r}
-
+p_made = nba_data_depth_made(data)
+p_missed = nba_data_depth_missed(data)
+#"made" ;p_made;"missed";p_missed
 ```
 
 ```{r}
-
-```
-
-```{r}
-
-```
-
-```{r}
-
+source("../R/nba-functions.R")
+curNdirs <- 250
+figure <- ddplot_nba(p_missed, p_made,Ndirs = curNdirs,
+                  parConst1 = -2, parConst2 = 5) 
 ```
 
 ```{r}

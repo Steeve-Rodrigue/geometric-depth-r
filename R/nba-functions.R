@@ -329,14 +329,27 @@ plot_match <- function(data, idMatch){
                size = 2, shape = 21, stroke = .5) +
     scale_color_manual(values = c("green4", "red3"), aesthetics = "color",
                        breaks = c("TRUE", "FALSE"), labels = c("Made", "Missed")) +
-    scale_fill_manual(values = c("green2", "gray20"), aesthetics = "fill",
+    scale_fill_manual(values = c("green2", "red"), aesthetics = "fill",
                       breaks = c("TRUE", "FALSE"), labels = c("Made", "Missed")) +
     scale_x_continuous(limits = c(-27.5, 27.5)) +
     scale_y_continuous(limits = c(-47.5, 7.5)) +
-    theme(legend.position = "none",
-          axis.title.x = element_blank(), axis.text.x = element_blank(), axis.ticks.x = element_blank(),
-          axis.title.y = element_blank(), axis.text.y = element_blank(), axis.ticks.y = element_blank())
-}
+    theme(
+      legend.position = "none",
+      
+      axis.title.x = element_blank(),
+      axis.text.x  = element_blank(),
+      axis.ticks.x = element_blank(),
+      
+      axis.title.y = element_blank(),
+      axis.text.y  = element_blank(),
+      axis.ticks.y = element_blank(),
+      
+      panel.background = element_rect(fill = "white", colour = "white"),
+      plot.background  = element_rect(fill = "white", colour = "white"),
+      
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank()
+    )}
 #==============================================plot_match2====================================================================
 #' Plot a single game's shot chart in one colour
 #'
@@ -363,9 +376,23 @@ plot_match2 <- function(data,idMatch,col='blue'){
     geom_point(data = don, aes(x = x, y = y), 
                size =2, shape = 19, stroke = .5, col=col) +
     scale_x_continuous(limits = c(-27.5, 27.5)) + scale_y_continuous(limits = c(-47.5, 7.5)) +
-    theme(legend.position="none", axis.title.x=element_blank(), axis.text.x=element_blank(),
-          axis.ticks.x=element_blank(),axis.title.y=element_blank(), axis.text.y=element_blank(),
-          axis.ticks.y=element_blank())
+    theme(
+      legend.position = "none",
+      
+      axis.title.x = element_blank(),
+      axis.text.x  = element_blank(),
+      axis.ticks.x = element_blank(),
+      
+      axis.title.y = element_blank(),
+      axis.text.y  = element_blank(),
+      axis.ticks.y = element_blank(),
+      
+      panel.background = element_rect(fill = "white", colour = "white"),
+      plot.background  = element_rect(fill = "white", colour = "white"),
+      
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank()
+    )
   p
 }
 #==============================================plot_season====================================================================
@@ -390,21 +417,35 @@ plot_season <- function(data,x,y,pt.col=pt.col){
   p <- drawNBAcourt(p, full = FALSE, size = 0.75, col = "black")
   p <- p + 
     geom_point(data = data, aes(x = x, y = y, color = SHOT_MADE, fill = SHOT_MADE), 
-               size =1, shape = 21, stroke = .5) +
+               size =2, shape = 21, stroke = .5) +
     draw_image(paste0("https://cdn.nba.com/headshots/nba/latest/1040x760/", attr(data,"PLAYER_ID"), ".png"), 
                x = -29, y = 1, width = 9, height = 9) +
     # ---- plot team logo (remove these 2 lines if you're plotting multiple teams!)
     draw_image(paste0("https://cdn.nba.com/logos/nba/", attr(data,"TEAM_ID"), "/primary/L/logo.svg"), 
            x = 22, y = 1, width = 6, height = 6) +
     # ---- fill the points with color
-    scale_color_manual(values = c("green4","red3"), aesthetics = "color", 
+    scale_color_manual(values = c("green4","red4"), aesthetics = "color", 
                        breaks=c("TRUE", "FALSE"), labels=c("Made", "Missed")) + 
-    scale_fill_manual(values = c("green2","gray61"), aesthetics = "fill", 
+    scale_fill_manual(values = c("green2","red2"), aesthetics = "fill", 
                       breaks=c("TRUE", "FALSE"), labels=c("Made", "Missed")) +
     scale_x_continuous(limits = c(-27.5, 27.5)) + scale_y_continuous(limits = c(-47.5, 7.5)) +
-    theme(legend.position="none",axis.title.x=element_blank(), axis.text.x=element_blank(),
-          axis.ticks.x=element_blank(),axis.title.y=element_blank(), axis.text.y=element_blank(),
-          axis.ticks.y=element_blank())
+    theme(
+      legend.position = "none",
+      
+      axis.title.x = element_blank(),
+      axis.text.x  = element_blank(),
+      axis.ticks.x = element_blank(),
+      
+      axis.title.y = element_blank(),
+      axis.text.y  = element_blank(),
+      axis.ticks.y = element_blank(),
+      
+      panel.background = element_rect(fill = "white", colour = "white"),
+      plot.background  = element_rect(fill = "white", colour = "white"),
+      
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank()
+    )
   p  
 }
 #NON-EXPORTED
@@ -466,3 +507,23 @@ ppdepth <- function(objs,data,nDir){
 }
 
 
+depth_all_matches <- function(matches, Ndirs,
+                               parConst1 = -1, parConst2 = 5,
+                               package = TRUE) {
+  if (!package) {
+    matches <- lapply(matches, function(x) list(coords = t(x$coords)))
+  }
+
+  depths <- sapply(seq_along(matches), function(i) {
+    if (package) {
+      depths.Tukey(list(matches[[i]]), matches, nDirs = Ndirs,
+                   subs = FALSE, exactEst = FALSE,
+                   parConst1 = parConst1, parConst2 = parConst2)
+    } else {
+      ppdepth(list(matches[[i]]), matches, Ndirs)
+    }
+  })
+
+  names(depths) <- names(matches)
+  depths
+}
