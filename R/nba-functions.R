@@ -374,7 +374,7 @@ plot_match2 <- function(data,idMatch,col='blue'){
   p <- drawNBAcourt(p, full = FALSE, size = 0.75, col = "black")
   p <- p + 
     geom_point(data = don, aes(x = x, y = y), 
-               size =2, shape = 19, stroke = .5, col=col) +
+               size =2.5, shape = 19, stroke = .5, col=col) +
     scale_x_continuous(limits = c(-27.5, 27.5)) + scale_y_continuous(limits = c(-47.5, 7.5)) +
     theme(
       legend.position = "none",
@@ -416,7 +416,7 @@ plot_season <- function(data,x,y,pt.col=pt.col){
   p <- ggplot(data = data.frame(x = 0, y = 0), aes(x, y))
   p <- drawNBAcourt(p, full = FALSE, size = 0.75, col = "black")
   p <- p + 
-    geom_point(data = data, aes(x = x, y = y, color = SHOT_MADE, fill = SHOT_MADE), 
+    geom_point(data = data, aes(x   = LOC_X, y = LOC_Y,  color = SHOT_MADE, fill = SHOT_MADE), 
                size =2, shape = 21, stroke = .5) +
     draw_image(paste0("https://cdn.nba.com/headshots/nba/latest/1040x760/", attr(data,"PLAYER_ID"), ".png"), 
                x = -29, y = 1, width = 9, height = 9) +
@@ -427,6 +427,54 @@ plot_season <- function(data,x,y,pt.col=pt.col){
     scale_color_manual(values = c("green4","red4"), aesthetics = "color", 
                        breaks=c("TRUE", "FALSE"), labels=c("Made", "Missed")) + 
     scale_fill_manual(values = c("green2","red2"), aesthetics = "fill", 
+                      breaks=c("TRUE", "FALSE"), labels=c("Made", "Missed")) +
+    scale_x_continuous(limits = c(-27.5, 27.5)) + scale_y_continuous(limits = c(-47.5, 7.5)) +
+    theme(
+      legend.position = "none",
+      
+      axis.title.x = element_blank(),
+      axis.text.x  = element_blank(),
+      axis.ticks.x = element_blank(),
+      
+      axis.title.y = element_blank(),
+      axis.text.y  = element_blank(),
+      axis.ticks.y = element_blank(),
+      
+      panel.background = element_rect(fill = "white", colour = "white"),
+      plot.background  = element_rect(fill = "white", colour = "white"),
+      
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank()
+    )
+  p  
+}
+
+#==============================================plot_season====================================================================
+#' Plot a player's full-season shot chart with headshot and team logo
+#'
+#' Draws every shot of a season on a half-court, coloured by made/missed, and
+#' overlays the player's headshot and team logo (fetched from NBA CDN URLs built
+#' from the \code{PLAYER_ID}/\code{TEAM_ID} attributes).
+#'
+#' @param data Shot data frame from \code{nba_data()}, with \code{x}, \code{y},
+#'   \code{SHOT_MADE} columns and \code{PLAYER_ID}/\code{TEAM_ID} attributes.
+#' @param x,y,pt.col Unused legacy arguments (coordinates and colour are taken
+#'   from \code{data} directly).
+#' @return A ggplot object of the season shot chart.
+#' @examples
+#' \dontrun{
+#' shots <- nba_data("LeBron James", 2024)
+#' plot_season(shots)
+#' }
+plot_season2 <- function(data,x,y,pt.col=pt.col){
+  p <- ggplot(data = data.frame(x = 0, y = 0), aes(x, y))
+  p <- drawNBAcourt(p, full = FALSE, size = 0.75, col = "gray")
+  p <- p + 
+    geom_point(data = data, aes(x   = LOC_X, y = LOC_Y,  color = SHOT_MADE, fill = SHOT_MADE), 
+               size =1.5, shape = 21, stroke = .5) +
+    scale_color_manual(values = c("black","black"), aesthetics = "color", 
+                       breaks=c("TRUE", "FALSE"), labels=c("Made", "Missed")) + 
+    scale_fill_manual(values = c("blue","blue"), aesthetics = "fill", 
                       breaks=c("TRUE", "FALSE"), labels=c("Made", "Missed")) +
     scale_x_continuous(limits = c(-27.5, 27.5)) + scale_y_continuous(limits = c(-47.5, 7.5)) +
     theme(
