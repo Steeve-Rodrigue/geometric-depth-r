@@ -243,7 +243,8 @@ ddplot_nba <- function(xx,yy,Ndirs,col=c("red","green4"),
                                             rep(col[2], length(depthsYvsY))),
        xlab = "Depth in missed", ylab = "Depth in made", pch = 19, 
        xlim = c(0, 1), ylim = c(0, 1), 
-       main = paste0("DD-plot — ", attr(xx, "namePlayer"), " (", attr(xx, "season"), ")")
+       main = ""
+       #main = paste0("DD-plot — ", attr(xx, "namePlayer"), " (", attr(xx, "season"), ")")
 
        )
   grid()
