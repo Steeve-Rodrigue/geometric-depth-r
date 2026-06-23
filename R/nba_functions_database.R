@@ -68,7 +68,7 @@ nba_data_csv <- function(filepath, seasons = NULL) {
     idGame    = as.factor(team$GAME_ID),
     dateGame  = team$GAME_DATE,
     LOC_X     = team$LOC_X,
-    LOC_Y     = team$LOC_Y,
+    LOC_Y     = team$LOC_Y - 41.75 - 5.25,
     SHOT_MADE = team$SHOT_MADE,
     stringsAsFactors = FALSE
   )

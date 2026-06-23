@@ -1,0 +1,230 @@
+---
+title: "clustering"
+format: html
+editor: visual
+---
+
+```{r warning=FALSE, message=FALSE}
+library(httr)
+library(jsonlite)
+library(dplyr)
+
+source("../R/nba-functions.R") #add echo = T to see more details
+```
+
+```{r}
+library(ggplot2)
+library(gridExtra)
+library(ggpubr) # sudo apt-get install liblapack-dev libblas-dev gfortran
+library(tidyverse)
+library(dplyr)
+library(BasketballAnalyzeR)
+
+library(extrafont)
+library(cowplot)
+library(transport)
+library(curveDepth)
+```
+
+```{r}
+year = 2019
+players <- list(
+  list(name = "Bam Adebayo",         season = year),
+  list(name = "James Harden",           season = year)
+)
+
+shots_by_player <- lapply(players, function(p) {
+  nba_data(Player = p$name, season = p$season)
+})
+names(shots_by_player) <- sapply(players, function(p) p$name)
+
+data_by_player<- lapply(shots_by_player, nba_data_depth)
+```
+
+```{r}
+ shots_by_player[[1]][shots_by_player[[1]]$SHOT_MADE == T,]
+```
+
+```{r}
+setwd("../data")
+source('../R/nba_functions_database.R', chdir = TRUE)
+year <- 2019
+
+files <- c(
+  "Bam_Adebayo_2018_2024.csv",
+  "Stephen_Curry_2015_2022.csv",
+  "Klay_Thompson_2015_2024.csv",
+  "Draymond_Green_2015_2024.csv",
+  "Kyle_Korver_2014_2020.csv",
+  "James_Harden_2015_2024.csv",
+  "Evan_Fournier_2015_2024.csv",
+  "Anthony_Davis_2015_2025.csv",
+  #"Nic_Claxton_2020_2025.csv",
+  "Jarrett_Allen_2018_2024.csv",
+  "Bam_Adebayo_2018_2024.csv",
+  "Alex_Caruso_2018_2024.csv",
+  "Kevin_Durant_2015_2024.csv",
+  "LeBron_James_2015_2024.csv",
+  "Joel_Embiid_2017_2022.csv"
+  
+)
+setwd("../data")
+shots_by_player <- lapply(files, function(f) {
+    nba_data_csv(f, year)
+})
+shots_made_by_player <- lapply(shots_by_player, function(df) {
+  df[df$SHOT_MADE == TRUE, ]
+})
+data_by_player <- lapply(files, function(f) {
+  nba_data_depth(
+    nba_data_csv(f, year)
+  )
+})
+names(data_by_player) <- gsub("_\\d{4}_\\d{4}\\.csv$", "", files)
+names(data_by_player) <- gsub("_", " ", names(data_by_player))
+names(shots_by_player) <- gsub("_\\d{4}_\\d{4}\\.csv$", "", files)
+names(shots_by_player) <- gsub("_", " ", names(data_by_player))
+```
+
+```{r}
+plot_season2(shots_made_by_player[[15]])
+```
+
+```{r}
+library(spatstat.geom)
+library(spatstat.explore)
+
+df <- shots_by_player[[1]]
+
+pp <- ppp(
+  x = df$LOC_X,
+  y = df$LOC_Y,
+  window = owin(
+    xrange = range(df$LOC_X, na.rm = TRUE),
+    yrange = range(df$LOC_Y, na.rm = TRUE)
+  )
+)
+
+lambda_hat <- spatstat.explore::density.ppp(pp, sigma = bw.diggle(pp))
+
+plot(lambda_hat, main = "Shot intensity (Player 4)")
+points(pp, pch = 16, cex = 0.3)
+```
+
+```{r}
+
+library(spatstat.geom)
+library(spatstat.explore)
+
+# ---------------------------------------------------
+# 1. GLOBAL COURT WINDOW (CRITICAL FIX)
+# ---------------------------------------------------
+all_x <- unlist(lapply(shots_made_by_player, function(df) df$LOC_X))
+all_y <- unlist(lapply(shots_made_by_player, function(df) df$LOC_Y))
+
+global_window <- owin(
+  xrange = range(all_x, na.rm = TRUE),
+  yrange = range(all_y, na.rm = TRUE)
+)
+
+
+# ---------------------------------------------------
+# 2. KERNEL DENSITY (SHOT INTENSITY PER PLAYER)
+# ---------------------------------------------------
+intensity_list <- lapply(shots_made_by_player, function(df) {
+
+  df <- na.omit(df)
+  df <- df[is.finite(df$LOC_X) & is.finite(df$LOC_Y), ]
+
+  pp <- ppp(
+    x = df$LOC_X,
+    y = df$LOC_Y,
+    window = global_window
+  )
+
+  density.ppp(pp, sigma = bw.diggle(pp))
+})
+
+names(intensity_list) <- names(shots_made_by_player)
+
+
+# ---------------------------------------------------
+# 3. SANITY CHECK (IMPORTANT)
+# ---------------------------------------------------
+print(lapply(intensity_list, function(im) {
+  c(min = min(im$v), max = max(im$v))
+}))
+
+
+# ---------------------------------------------------
+# 4. VECTORIZE INTENSITY SURFACES
+# ---------------------------------------------------
+grid_vectors <- lapply(intensity_list, function(im) {
+  as.vector(im$v)
+})
+
+
+# ---------------------------------------------------
+# 5. DISTANCE MATRIX (L2 BETWEEN SURFACES)
+# ---------------------------------------------------
+n <- length(grid_vectors)
+D <- matrix(0, n, n)
+
+for (i in 1:n) {
+  for (j in 1:n) {
+
+    D[i, j] <- sqrt(sum((grid_vectors[[i]] - grid_vectors[[j]])^2, na.rm = TRUE))
+
+  }
+}
+
+rownames(D) <- names(shots_by_player)
+colnames(D) <- names(shots_by_player)
+
+
+# ---------------------------------------------------
+# 6. RESULT
+# ---------------------------------------------------
+print(D)
+
+
+# ---------------------------------------------------
+# 7. VISUALIZATION
+# ---------------------------------------------------
+heatmap(D, symm = TRUE)
+```
+
+```{r}
+
+# ---------------------------------------------------
+# 5. ISO-MULTIDIMENSIONAL SCALING (NON-METRIC MDS)
+# ---------------------------------------------------
+mds_iso <- isoMDS(D, k = 2)
+
+
+# ---------------------------------------------------
+# 6. PLOT RESULTS
+# ---------------------------------------------------
+plot(mds_iso$points,
+     pch = 19,
+     xlab = "Dimension 1",
+     ylab = "Dimension 2",
+     main = "NBA Shooting Style Map (ISO-MDS)")
+
+text(mds_iso$points,
+     labels = rownames(D),
+     pos = 3,
+     cex = 0.4)
+
+
+# ---------------------------------------------------
+# 7. OUTPUT MATRIX (OPTIONAL)
+# ---------------------------------------------------
+print(D)
+```
+
+```         
+```
+
+```         
+```
