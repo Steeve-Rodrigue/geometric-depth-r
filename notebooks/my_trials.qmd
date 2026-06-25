@@ -93,7 +93,7 @@ library(curveDepth)
 ```{r}
 getwd()
 source("../R/nba-functions.R") #add echo = T to see more details ##Rudy Gobert 
-shots <- nba_data(Player = "Giannis Antetokounmpo", season = 2019)
+shots <- nba_data(Player = "stephen curry", season = 2019)
   #str(shots)
   head(shots)
   data = nba_data_depth(shots)
@@ -492,11 +492,11 @@ for(i in seq_along(data_by_player)) {
 #### Giannis antetokounmpo
 
 ```{r}
-p_made = nba_data_depth_made(data_by_player[[4]])
-p_missed = nba_data_depth_missed(data_by_player[[4]])
+p_made = nba_data_depth_made(data_by_player[[6]])
+p_missed = nba_data_depth_missed(data_by_player[[6]])
 curNdirs <- 250
 figure <- ddplot_nba(p_missed, p_made,Ndirs = curNdirs,
-                  parConst1 = -2, parConst2 = 5)
+                  parConst1 = -2, parConst2 = 5, package = F)
 ```
 
 ```{r}
@@ -899,7 +899,7 @@ for(i in seq_len(n_players)){
 ```{r}
 # --- sélection des tirs réussis des deux joueurs ----------------------------
 pl_1 <- nba_data_depth_made(data_by_player[[6]])
-pl_2 <- nba_data_depth_made(data_by_player[[5]])
+pl_2 <- nba_data_depth_made(data_by_player[[4]])
 
 wil_test <- function(pl_1, pl_2){
   # --- DD-plot -----------------------------------------------------------------

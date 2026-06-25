@@ -47,6 +47,7 @@ data_by_player<- lapply(shots_by_player, nba_data_depth)
 
 ```{r}
 setwd("../data")
+source("../R/nba-functions.R")
 source('../R/nba_functions_database.R', chdir = TRUE)
 year <- 2019
 
@@ -86,96 +87,23 @@ names(shots_by_player) <- gsub("_", " ", names(data_by_player))
 ```
 
 ```{r}
-plot_season2(shots_made_by_player[[7]])
+shots_made_by_player[[7]]
 ```
 
 ```{r}
-
-library(MASS)
-
-# ---------------------------------------------------
-# 1. GLOBAL NORMALIZATION TO [0,1]^2
-# ---------------------------------------------------
-all_x <- unlist(lapply(shots_made_by_player, function(df) df$LOC_X))
-all_y <- unlist(lapply(shots_made_by_player, function(df) df$LOC_Y))
-
-xmin <- min(all_x)
-xmax <- max(all_x)
-
-ymin <- min(all_y)
-ymax <- max(all_y)
-
-
-# ---------------------------------------------------
-# 2. TRANSFORM TO s* = logit-normalized COORDINATES
-# ---------------------------------------------------
-process_transform <- function(df){
-
-  x <- (df$LOC_X - xmin) / (xmax - xmin)
-  y <- (df$LOC_Y - ymin) / (ymax - ymin)
-
-  eps <- 1e-6
-  x <- pmin(pmax(x, eps), 1 - eps)
-  y <- pmin(pmax(y, eps), 1 - eps)
-
-  cbind(
-    qlogis(x),
-    qlogis(y)
-  )
-}
-
-proc_list <- lapply(shots_by_player, process_transform)
-
-
-# ---------------------------------------------------
-# 3. GAUSSIAN KERNEL SUM (NO GRID)
-# ---------------------------------------------------
-kernel_sum <- function(X, Y = X, c2 = 1){
-
-  X <- as.matrix(X)
-  Y <- as.matrix(Y)
-
-  nx <- rowSums(X^2)
-  ny <- rowSums(Y^2)
-
-  D2 <- outer(nx, ny, "+") - 2 * X %*% t(Y)
-
-  sum(exp(-(c2^2 / 2) * D2))
-}
-
-
-# ---------------------------------------------------
-# 4. PAPER DISTANCE d_F(s,t)
-# ---------------------------------------------------
-smooth_distance <- function(S, T, c1 = 1, c2 = 1){
-
-  A <- kernel_sum(S, S, c2)   # first sum
-  B <- kernel_sum(T, T, c2)   # second sum
-  C <- kernel_sum(S, T, c2)   # cross sum
-
-  const <- c1^2 * pi / (2 * c2^2)
-
-  sqrt(max(const * (A + B - 2 * C), 0))
-}
-
-
-# ---------------------------------------------------
-# 5. DISTANCE MATRIX
-# ---------------------------------------------------
-n <- length(proc_list)
-
+n <- length(shots_made_by_player)
 D <- matrix(0, n, n)
 
 for(i in 1:n){
   for(j in i:n){
-
-    dij <- smooth_distance(
-      proc_list[[i]],
-      proc_list[[j]],
-      c1 = 1,
-      c2 = 1
+    
+    # Utilisation directe de ta fonction sur les dataframes d'origine
+    dij <- evaluer_distance(
+      shots_made_by_player[[i]],
+      shots_made_by_player[[j]],
+      sigma = 3
     )
-
+    
     D[i, j] <- dij
     D[j, i] <- dij
   }
@@ -184,30 +112,230 @@ for(i in 1:n){
 rownames(D) <- names(shots_by_player)
 colnames(D) <- names(shots_by_player)
 
+# Affichage de la matrice et du Heatmap
 D
 heatmap(D)
-
-
-# ---------------------------------------------------
-# 6. ISO-MDS VISUALIZATION
-# ---------------------------------------------------
-mds_iso <- isoMDS(D, k = 2)
-
-plot(mds_iso$points,
-     asp = 1,
-     pch = 19,
-     xlab = "Dim 1",
-     ylab = "Dim 2",
-     main = "NBA Players - Smoothing Distance (Paper Method)")
-
-text(mds_iso$points,
-     labels = rownames(D),
-     pos = 3,
-     cex = 0.8)
 ```
 
-```         
+```{r}
+theme_custom <- theme(
+  panel.background = element_rect(fill = "white", colour = NA),
+  panel.border     = element_rect(fill = NA, colour = "black"),
+  panel.grid       = element_line(colour = "grey70", linetype = "dotted", linewidth = 0.3),
+  panel.grid.minor = element_line(linewidth = rel(1)),
+  legend.key       = element_rect(fill = "white", colour = NA)
+)
 ```
 
-```         
+```{r}
+#UMAP
+
+# install.packages("umap")
+library(umap)
+library(ggplot2)
+library(ggrepel)
+
+# 1. Configuration de l'UMAP pour une matrice de distance
+# n_neighbors contrôle la balance entre structure locale et globale (ex: entre 3 et 15)
+configuration_umap <- umap.defaults
+configuration_umap$input <- "dist"
+configuration_umap$n_neighbors <- min(5, nrow(D) - 1) # À ajuster selon ton nombre de joueurs
+
+# 2. Calcul de la réduction de dimension
+res_umap <- umap(D, config = configuration_umap)
+
+# 3. Création du Dataframe pour le graphique
+umap_df <- data.frame(
+  Dim1 = res_umap$layout[, 1],
+  Dim2 = res_umap$layout[, 2],
+  Joueur = rownames(D)
+)
+
+# 4. Affichage moderne avec ggplot2
+ggplot(umap_df, aes(x = Dim1, y = Dim2, label = Joueur)) +
+  geom_point(color = "darkviolet", size = 3, alpha = 0.8) +
+  geom_text_repel(size = 2.5, max.overlaps = 15) +
+  labs(
+    title = "Cartographie UMAP des Joueurs NBA",
+    subtitle = "Projection basée sur la matrice de distance spatiale (KDE)",
+    x = "UMAP Dimension 1",
+    y = "UMAP Dimension 2"
+  ) + mon_theme
+```
+
+```{r}
+#ISOMAP
+#install.packages("vegan")
+library(vegan)
+library(ggplot2)
+library(ggrepel)
+
+res_isomap <- isomap(D, ndim = 2, k = 2)
+
+# 2. Extraction des coordonnées pour ggplot
+isomap_df <- data.frame(
+  Dim1 = res_isomap$points[, 1],
+  Dim2 = res_isomap$points[, 2],
+  Joueur = rownames(D)
+)
+
+# 3. Affichage avec ton thème personnalisé (fond blanc, pointillés fins)
+ggplot(isomap_df, aes(x = Dim1, y = Dim2, label = Joueur)) +
+  geom_point(color = "darkcyan", size = 1.5, alpha = 0.8) +
+  geom_text_repel(size = 3.5, max.overlaps = 15) +
+  labs(
+    title = "Cartographie Isomap des Joueurs NBA",
+    x = "Isomap Dimension 1",
+    y = "Isomap Dimension 2"
+  ) +
+  mon_theme
+```
+
+```{r}
+library(ggplot2)
+library(ggrepel)
+
+mds_classique <- cmdscale(D, k = 2, eig = TRUE)
+
+# Extraction des coordonnées 2D
+mds_df <- data.frame(
+  Dim1 = mds_classique$points[, 1],
+  Dim2 = mds_classique$points[, 2],
+  Joueur = rownames(D)
+)
+
+# 2. Affichage avec ton thème personnalisé
+ggplot(mds_df, aes(x = Dim1, y = Dim2, label = Joueur)) +
+  geom_point(color = "steelblue", size = 2, alpha = 0.8) +
+  geom_text_repel(size = 2, max.overlaps = 15) +
+  coord_fixed(ratio = 1) + # CRUCIAL pour le MDS : conserve l'échelle géométrique 1:1
+  labs(
+    title = "Cartographie MDS Classique ", x = "Axe Principal 1",    y = "Axe Principal 2"
+  ) + mon_theme
+```
+
+## Distances entre processus
+
+```{r}
+library(spatstat)
+
+evaluer_distance <- function(data_joueur_A, data_joueur_B, sigma = 3, fenetre = owin(c(-25, 25), c(-47.1, 0)) ) {
+  
+  # 2. Création des objets ppp
+  ppp_A <- ppp(x = data_joueur_A$LOC_X, y = data_joueur_A$LOC_Y, window = fenetre)
+  ppp_B <- ppp(x = data_joueur_B$LOC_X, y = data_joueur_B$LOC_Y, window = fenetre)
+  
+  # 3. Calcul des KDE (en s'assurant que les grilles de pixels correspondent parfaitement)
+  kde_A <- density(ppp_A, sigma = sigma, at = "pixels")
+  kde_B <- density(ppp_B, sigma = sigma, at = "pixels", dimyx = dim(kde_A)) 
+  
+  # 4. Calcul de la distance L2 (Intégration de la différence au carré)
+  distance_KDE <- integral((kde_A - kde_B)^2)
+  
+  return(distance_KDE)
+}
+pl_1 <- shots_made_by_player[[1]]
+pl_2 <- shots_made_by_player[[2]]
+evaluer_distance(pl_2, pl_1)
+```
+
+```{r}
+library(spatstat)
+
+evaluer_distance_matchs <- function(match_A, match_B, sigma = 3, fenetre_terrain = owin(c(-25, 25), c(-47.1, 0))) {
+  
+  # Extraction des matrices de coordonnées [,1] = X, [,2] = Y
+  coords_A <- match_A$coords
+  coords_B <- match_B$coords
+  
+  # Création des objets ppp pour spatstat
+  ppp_A <- ppp(x = coords_A[, 1], y = coords_A[, 2], window = fenetre_terrain)
+  ppp_B <- ppp(x = coords_B[, 1], y = coords_B[, 2], window = fenetre_terrain)
+  
+  # Calcul des densités de kernel (KDE)
+  kde_A <- density(ppp_A, sigma = sigma, at = "pixels")
+  kde_B <- density(ppp_B, sigma = sigma, at = "pixels", dimyx = dim(kde_A)) 
+  
+  # Calcul et retour de la distance L2 (Intégration de la différence au carré)
+  return(integral((kde_A - kde_B)^2))
+}
+```
+
+```{r}
+# 1. Sélection du joueur (par exemple, le premier joueur de ta liste)
+matchs_joueur <- data_by_player[[1]]
+
+# 2. Initialisation de la matrice de distance pour ce joueur
+n_matchs <- length(matchs_joueur)
+noms_matchs <- names(matchs_joueur) # Récupère les IDs des matchs (ex: "21800006")
+
+D_matchs <- matrix(0, nrow = n_matchs, ncol = n_matchs)
+rownames(D_matchs) <- noms_matchs
+colnames(D_matchs) <- noms_matchs
+
+# 3. Double boucle optimisée pour remplir la matrice
+for (i in 1:(n_matchs - 1)) {
+  for (j in (i + 1):n_matchs) {
+    
+    # Extraction correcte avec les doubles crochets [[ ]]
+    match_i <- matchs_joueur[[i]]
+    match_j <- matchs_joueur[[j]]
+    
+    # Calcul de la distance KDE entre le match i et le match j
+    dij <- evaluer_distance_matchs(match_i, match_j)
+    
+    # Remplissage symétrique
+    D_matchs[i, j] <- dij
+    D_matchs[j, i] <- dij
+  }
+}
+
+# La diagonale reste à 0 (la distance d'un match avec lui-même est nulle)
+
+# 4. Affichage du résultat
+print(D_matchs)
+```
+
+```{r}
+
+pl_1 <- data_by_player[[1]][[1]]
+pl_2 <- data_by_player[[1]][[2]]
+evaluer_distance_matchs(pl_2, pl_1)
+```
+
+## Calcul du voisinage d'un match
+
+```{r}
+k <- 20
+neighbors <- vector("list", n_matchs)
+for(i in 1:n_matchs){
+  # distances du match i à tous les autres
+  d_i <- D_matchs[i, ]
+  ord <- order(d_i)
+  # on enlève le match lui-même
+  ord <- ord[ord != i]
+  # k plus proches voisins
+  neighbors[[i]] <- ord[1:k]
+}
+```
+
+```{r}
+neighbors[[1]]
+```
+
+## Calcul de la profondeur dans le voisinage
+
+```{r}
+set.seed(42)
+LD <- numeric(n_matchs)
+i <- 1
+
+for(i in 1:n_matchs){
+  
+  voisinage <- matchs_joueur[c(i, neighbors[[i]])]
+  LD[i]  <- ppdepth(voisinage, voisinage, 250)
+  
+  #LD[i] <- depths.Tukey(matchs_joueur[i], voisinage, nDirs = 250, subs = FALSE, exactEst = FALSE,  parConst1 = -2, parConst2 = 5 )
+  
+}
 ```
