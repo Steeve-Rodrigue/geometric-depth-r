@@ -16,7 +16,7 @@ source("../R/nba-functions.R") #add echo = T to see more details
 library(ggplot2)
 library(gridExtra)
 library(ggpubr) # sudo apt-get install liblapack-dev libblas-dev gfortran
-library(tidyverse)
+#library(tidyverse)
 library(dplyr)
 library(BasketballAnalyzeR)
 

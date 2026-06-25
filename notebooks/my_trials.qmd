@@ -91,6 +91,7 @@ library(curveDepth)
 ```
 
 ```{r}
+getwd()
 source("../R/nba-functions.R") #add echo = T to see more details ##Rudy Gobert 
 shots <- nba_data(Player = "Giannis Antetokounmpo", season = 2019)
   #str(shots)
@@ -100,7 +101,7 @@ shots <- nba_data(Player = "Giannis Antetokounmpo", season = 2019)
   p_missed = nba_data_depth_missed(data)
   curNdirs <- 250
   figure <- ddplot_nba(p_missed, p_made,Ndirs = curNdirs,
-                    parConst1 = -2, parConst2 = 5) 
+                    parConst1 = -2, parConst2 = 5, package = F) 
   deepestx <- order(figure$XvsX) ; 
   deepesty <- order(figure$YvsY) ; 
   plot(figure$YvsY[deepesty],type='h',main="Marked Shots")
@@ -125,7 +126,7 @@ shots[shots$dateGame == "20190407" &shots$SHOT_MADE=="TRUE" , ]
 ```
 
 ```{r}
-plot_season(shots,shots$LOC_X, shots$LOC_Y)
+plot_season2(shots,shots$LOC_X, shots$LOC_Y)
 ```
 
 ```{r}
@@ -636,7 +637,7 @@ p_hist
 
 ```{r}
 # --- ligne 1 colonne 2 : vue globale de la saison ----------------------------
-p_season <- plot_season(shots_by_player[[3]]) 
+p_season <- plot_season2(shots_by_player[[3]]) 
 p_season
 ```
 
@@ -650,7 +651,7 @@ p_missed = nba_data_depth_missed(data_by_player[[5]])
 
 curNdirs <- 250
 figure <- ddplot_nba(p_missed, p_made,Ndirs = curNdirs,
-                  parConst1 = -2, parConst2 = 5)
+                  parConst1 = -2, parConst2 = 5, package = F)
 #=======================================================
 R_missed <- figure$XvsY  # profondeur des tirs manqués par rapport aux réussis
 R_made   <- figure$YvsY  # profondeur des tirs réussis par rapport aux réussis
@@ -964,8 +965,8 @@ pl_2 <- nba_data_depth_made(data_by_player[[5]])
 methode_2 <- function(pl_1, pl_2){
   set.seed(0)
   # --- DD-plot -----------------------------------------------------------------
-  figure <- ddplot_nba(pl_1, pl_2, Ndirs = 250,
-                       parConst1 = -2, parConst2 = 5)
+  # figure <- ddplot_nba(pl_1, pl_2, Ndirs = 250,
+  #                      parConst1 = -2, parConst2 = 5)
   #------------------------------------------------------------------------------
   
   X <- pl_2

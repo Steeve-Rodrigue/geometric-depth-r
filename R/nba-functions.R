@@ -396,6 +396,56 @@ plot_match2 <- function(data,idMatch,col='blue'){
     )
   p
 }
+#==============================================draw density====================================================================
+
+#' Plot a player's shot density map on an NBA court
+#'
+#' Calculates kernel density estimation (KDE) of shots and overlays 
+#' the heatmap on top of a half-court layout.
+#'
+#' @param data A data frame containing \code{LOC_X} and \code{LOC_Y} coordinates.
+#' @param col Character string for the peak intensity color (e.g., \code{"red"}). Default is \code{"red"}.
+#' @param sigma Numerical value for the smoothing parameter (bandwidth). Default is \code{4}.
+#'
+#' @return A ggplot object with a stretched layout (no aspect ratio constraint).
+#' @export
+plot_density_court <- function(data, col = "red", sigma = 4) {
+  library(spatstat)
+  
+  # 1. Extraction des données du joueur
+  df_shots <- data
+  
+  # 2. Calcul de la densité spatiale (spatstat)
+  fenetre_terrain <- owin(c(-25, 25), c(-47.1, 0))
+  ppp_shots <- ppp(x = df_shots$LOC_X, y = df_shots$LOC_Y, window = fenetre_terrain)
+  densite_shots <- density(ppp_shots, sigma = sigma)
+  
+  # 3. Conversion en data.frame pour ggplot
+  df_densite <- as.data.frame(densite_shots)
+  colnames(df_densite)[3] <- "v" 
+  
+  # 4. Construction du graphique ggplot2
+  p <- ggplot(data = data.frame(x = 0, y = 0), aes(x, y))
+  p <- drawNBAcourt(p, full = FALSE, size = 0.75, col = "black")
+  p <- p + geom_raster(data = df_densite, 
+                       aes(x = x, y = y, fill = v), 
+                       interpolate = TRUE, 
+                       alpha = 0.8) + 
+    
+    scale_fill_gradient(low = "transparent", high = col) +
+    scale_x_continuous(limits = c(-27.5, 27.5)) +
+    scale_y_continuous(limits = c(-47.5, 7.5)) +
+    theme_void() +
+    theme(
+      legend.position = "none", 
+      plot.margin = margin(0, 0, 0, 0, "cm"),
+      panel.spacing = unit(0, "lines"),
+      panel.background = element_rect(fill = "white", colour = "white"),
+      plot.background  = element_rect(fill = "white", colour = "white")
+    ) 
+  
+  return(p)
+}
 #==============================================plot_season====================================================================
 #' Plot a player's full-season shot chart with headshot and team logo
 #'
