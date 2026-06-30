@@ -1,0 +1,521 @@
+---
+title: "Test_robustesse"
+format: html
+editor: visual
+---
+
+### SCÉNARIO 1 :Perturbation d'intensité globale
+
+```{r}
+# ==============================================================================
+# SCÉNARIO 1 : Étude de puissance — Perturbation d'intensité globale
+# ==============================================================================
+
+library(spatstat)
+
+# --- paramètres globaux -------------------------------------------------------
+set.seed(0)
+W_GLOBAL          <- owin(c(0, 1), c(0, 1))
+LAMBDA_0_GLOBAL   <- 30
+N_MATCHES_GLOBAL  <- 20
+
+# ==============================================================================
+# FONCTIONS DE SIMULATION
+# ==============================================================================
+
+#' Simule un échantillon de "matchs" sous H0 (Processus de Poisson Homogène)
+simulate_sample_H0 <- function(n_matches = N_MATCHES_GLOBAL,
+                               lambda0   = LAMBDA_0_GLOBAL,
+                               W         = W_GLOBAL) {
+  replicate(n = n_matches, expr = {
+    sim_ppp <- rpoispp(lambda = lambda0, win = W)
+    list(coords = cbind(sim_ppp$x, sim_ppp$y))
+  }, simplify = FALSE)
+}
+
+#' Simule un échantillon sous H1, scénario 1 (intensité perturbée)
+simulate_sample_H1_sc1 <- function(delta,
+                                   n_matches = N_MATCHES_GLOBAL,
+                                   lambda0   = LAMBDA_0_GLOBAL,
+                                   W         = W_GLOBAL) {
+  lambda_alternative <- lambda0 * (1 + delta)
+  replicate(n = n_matches, expr = {
+    sim_ppp <- rpoispp(lambda = lambda_alternative, win = W)
+    list(coords = cbind(sim_ppp$x, sim_ppp$y))
+  }, simplify = FALSE)
+}
+
+# ==============================================================================
+# UNE ITÉRATION DU TEST
+# ==============================================================================
+
+#' Une itération Monte-Carlo : génère H0 et H1, applique le test, retourne le rejet
+#'
+#' @param test_fun Fonction de test prenant (pl_H0, pl_H1) et retournant
+#'                 une p-valeur (ex: methode_1, methode_2)
+mc_iteration_sc1 <- function(delta,
+                             test_fun,
+                             alpha     = 0.05,
+                             n_matches = N_MATCHES_GLOBAL,
+                             lambda0   = LAMBDA_0_GLOBAL,
+                             W         = W_GLOBAL) {
+  
+  pl_H0 <- simulate_sample_H0(n_matches = n_matches, lambda0 = lambda0, W = W)
+  pl_H1 <- simulate_sample_H1_sc1(delta = delta, n_matches = n_matches,
+                                  lambda0 = lambda0, W = W)
+  
+  p_value <- test_fun(pl_H0, pl_H1)
+  p_value <= alpha
+}
+
+# ==============================================================================
+# CALCUL DE LA PUISSANCE POUR UN DELTA DONNÉ
+# ==============================================================================
+
+#' Estime la puissance du test pour un delta fixé, par répétition Monte-Carlo
+power_sc1 <- function(delta,
+                      test_fun,
+                      B         = 500,
+                      alpha     = 0.05,
+                      n_matches = N_MATCHES_GLOBAL,
+                      lambda0   = LAMBDA_0_GLOBAL,
+                      W         = W_GLOBAL) {
+  
+  reject <- logical(B)
+  for (b in seq_len(B)) {
+    reject[b] <- mc_iteration_sc1(
+      delta     = delta,
+      test_fun  = test_fun,
+      alpha     = alpha,
+      n_matches = n_matches,
+      lambda0   = lambda0,
+      W         = W)
+  }
+  mean(reject)
+}
+
+# ==============================================================================
+# COURBE DE PUISSANCE
+# ==============================================================================
+
+delta_grid <- seq(0, 1, by = 0.1)
+
+power <- sapply(delta_grid, function(d) {
+  cat("delta =", d, "\n")
+  power_sc1(delta = d, test_fun = wil_test, B = 100)
+})
+
+# ==============================================================================
+# VISUALISATION
+# ==============================================================================
+
+plot(delta_grid,
+     power,
+     type = "b",
+     pch  = 19,
+     col  = "steelblue",
+     xlab = expression(delta),
+     ylab = "Puissance estimée",
+     main = "Courbe de puissance — Scénario 1 (intensité globale)",
+     ylim = c(0, 1))
+abline(h = 0.05, lty = 2, col = "red")
+grid()
+```
+
+```{r}
+# comparer plusieurs méthodes sur le même graphique
+power_methode1 <- sapply(delta_grid, function(d) power_sc1(d, test_fun = methode_1, B = 200))
+power_methode2 <- sapply(delta_grid, function(d) power_sc1(d, test_fun = methode_2, B = 200))
+
+plot(delta_grid, power_methode1, type = "b", pch = 19, col = "steelblue",
+     xlab = expression(delta), ylab = "Puissance estimée", ylim = c(0, 1))
+
+lines(delta_grid, power_methode2, type = "b", pch = 17, col = "firebrick")
+
+legend("bottomright", legend = c("Méthode 1", "Méthode 2"),
+       col = c("steelblue", "firebrick"), pch = c(19, 17), lty = 1)
+
+abline(h = 0.05, lty = 2, col = "grey50")
+```
+
+### SCÉNARIO 2 : Gradient spatial (inhomogénéité)
+
+```{r}
+# ==============================================================================
+# SCÉNARIO 2 : Étude de puissance — Gradient spatial (inhomogénéité)
+# ==============================================================================
+
+library(spatstat)
+
+# --- paramètres globaux -------------------------------------------------------
+set.seed(0)
+W_GLOBAL          <- owin(c(0, 1), c(0, 1))
+LAMBDA_0_GLOBAL   <- 30
+N_MATCHES_GLOBAL  <- 20
+
+# ==============================================================================
+# FONCTIONS DE SIMULATION
+# ==============================================================================
+
+#' Simule un échantillon de "matchs" sous H0 (Processus de Poisson Homogène)
+simulate_sample_H0 <- function(n_matches = N_MATCHES_GLOBAL,
+                               lambda0   = LAMBDA_0_GLOBAL,
+                               W         = W_GLOBAL) {
+  replicate(n = n_matches, expr = {
+    sim_ppp <- rpoispp(lambda = lambda0, win = W)
+    list(coords = cbind(sim_ppp$x, sim_ppp$y))
+  }, simplify = FALSE)
+}
+
+#' Simule un échantillon sous H1, scénario 2 (gradient spatial)
+simulate_sample_H1_sc2 <- function(delta,
+                                   n_matches = N_MATCHES_GLOBAL,
+                                   lambda0   = LAMBDA_0_GLOBAL,
+                                   W         = W_GLOBAL) {
+  f_gradient <- function(x, y) 2 * lambda0 * (delta * x + (1 - delta) * 0.5)
+  
+  replicate(n = n_matches, expr = {
+    sim_ppp <- rpoispp(lambda = f_gradient, win = W)
+    list(coords = cbind(sim_ppp$x, sim_ppp$y))
+  }, simplify = FALSE)
+}
+
+# ==============================================================================
+# UNE ITÉRATION DU TEST
+# ==============================================================================
+
+#' Une itération Monte-Carlo : génère H0 et H1, applique le test, retourne le rejet
+mc_iteration_sc2 <- function(delta,
+                             test_fun,
+                             alpha     = 0.05,
+                             n_matches = N_MATCHES_GLOBAL,
+                             lambda0   = LAMBDA_0_GLOBAL,
+                             W         = W_GLOBAL,
+                             ...) {
+  
+  pl_H0 <- simulate_sample_H0(n_matches = n_matches, lambda0 = lambda0, W = W)
+  pl_H1 <- simulate_sample_H1_sc2(delta = delta, n_matches = n_matches,
+                                  lambda0 = lambda0, W = W)
+  
+  p_value <- test_fun(pl_H0, pl_H1, ...)
+  p_value <= alpha
+}
+
+# ==============================================================================
+# CALCUL DE LA PUISSANCE POUR UN DELTA DONNÉ
+# ==============================================================================
+
+#' Estime la puissance du test pour un delta fixé, par répétition Monte-Carlo
+power_sc2 <- function(delta,
+                      test_fun,
+                      B         = 500,
+                      alpha     = 0.05,
+                      n_matches = N_MATCHES_GLOBAL,
+                      lambda0   = LAMBDA_0_GLOBAL,
+                      W         = W_GLOBAL,
+                      ...) {
+  
+  reject <- logical(B)
+  for (b in seq_len(B)) {
+    reject[b] <- mc_iteration_sc2(
+      delta     = delta,
+      test_fun  = test_fun,
+      alpha     = alpha,
+      n_matches = n_matches,
+      lambda0   = lambda0,
+      W         = W,
+      ...
+    )
+  }
+  mean(reject)
+}
+
+# ==============================================================================
+# COURBE DE PUISSANCE
+# ==============================================================================
+
+delta_grid <- seq(0.5, 1.5, by = 0.1)
+
+power <- sapply(delta_grid, function(d) {
+  cat("delta =", d, "\n")
+  power_sc2(delta = d, test_fun = wil_test, B = 100)
+})
+
+# ==============================================================================
+# VISUALISATION
+# ==============================================================================
+
+plot(delta_grid,
+     power,
+     type = "b",
+     pch  = 19,
+     col  = "steelblue",
+     xlab = expression(delta),
+     ylab = "Puissance estimée",
+     main = "Courbe de puissance — Scénario 2 (gradient spatial)",
+     ylim = c(0, 1))
+abline(h = 0.05, lty = 2, col = "red")
+grid()
+```
+
+### SCÉNARIO 3 : Clustering (processus de Thomas)
+
+```{r}
+# ==============================================================================
+# SCÉNARIO 3 : Étude de puissance — Clustering (processus de Thomas)
+# ==============================================================================
+
+library(spatstat)
+
+# --- paramètres globaux -------------------------------------------------------
+set.seed(0)
+W_GLOBAL          <- owin(c(0, 1), c(0, 1))
+LAMBDA_0_GLOBAL   <- 30
+N_MATCHES_GLOBAL  <- 20
+KAPPA_GLOBAL      <- 10   # nombre moyen de centres de clusters
+
+# ==============================================================================
+# FONCTIONS DE SIMULATION
+# ==============================================================================
+
+#' Simule un échantillon de "matchs" sous H0 (Processus de Poisson Homogène)
+simulate_sample_H0 <- function(n_matches = N_MATCHES_GLOBAL,
+                               lambda0   = LAMBDA_0_GLOBAL,
+                               W         = W_GLOBAL) {
+  replicate(n = n_matches, expr = {
+    sim_ppp <- rpoispp(lambda = lambda0, win = W)
+    list(coords = cbind(sim_ppp$x, sim_ppp$y))
+  }, simplify = FALSE)
+}
+
+#' Simule un échantillon sous H1, scénario 3 (clustering Thomas)
+simulate_sample_H1_sc3 <- function(delta,
+                                   n_matches = N_MATCHES_GLOBAL,
+                                   lambda0   = LAMBDA_0_GLOBAL,
+                                   kappa     = KAPPA_GLOBAL,
+                                   W         = W_GLOBAL) {
+  
+  mu_thomas <- lambda0 / kappa
+  sigma_max <- 0.20
+  sigma_min <- 0.02
+  sigma     <- sigma_max * (1 - delta) + sigma_min * delta
+  
+  replicate(n = n_matches, expr = {
+    sim_ppp <- rThomas(kappa = kappa, scale = sigma, mu = mu_thomas, win = W)
+    list(coords = cbind(sim_ppp$x, sim_ppp$y))
+  }, simplify = FALSE)
+}
+
+# ==============================================================================
+# UNE ITÉRATION DU TEST
+# ==============================================================================
+
+#' Une itération Monte-Carlo : génère H0 et H1, applique le test, retourne le rejet
+mc_iteration_sc3 <- function(delta,
+                             test_fun,
+                             alpha     = 0.05,
+                             n_matches = N_MATCHES_GLOBAL,
+                             lambda0   = LAMBDA_0_GLOBAL,
+                             kappa     = KAPPA_GLOBAL,
+                             W         = W_GLOBAL,
+                             ...) {
+  
+  pl_H0 <- simulate_sample_H0(n_matches = n_matches, lambda0 = lambda0, W = W)
+  pl_H1 <- simulate_sample_H1_sc3(delta = delta, n_matches = n_matches,
+                                  lambda0 = lambda0, kappa = kappa, W = W)
+  
+  p_value <- test_fun(pl_H0, pl_H1, ...)
+  p_value <= alpha
+}
+
+# ==============================================================================
+# CALCUL DE LA PUISSANCE POUR UN DELTA DONNÉ
+# ==============================================================================
+
+#' Estime la puissance du test pour un delta fixé, par répétition Monte-Carlo
+power_sc3 <- function(delta,
+                      test_fun,
+                      B         = 500,
+                      alpha     = 0.05,
+                      n_matches = N_MATCHES_GLOBAL,
+                      lambda0   = LAMBDA_0_GLOBAL,
+                      kappa     = KAPPA_GLOBAL,
+                      W         = W_GLOBAL,
+                      ...) {
+  
+  reject <- logical(B)
+  for (b in seq_len(B)) {
+    reject[b] <- mc_iteration_sc3(
+      delta     = delta,
+      test_fun  = test_fun,
+      alpha     = alpha,
+      n_matches = n_matches,
+      lambda0   = lambda0,
+      kappa     = kappa,
+      W         = W,
+      ...
+    )
+  }
+  mean(reject)
+}
+
+# ==============================================================================
+# COURBE DE PUISSANCE
+# ==============================================================================
+
+delta_grid <- seq(0.5, 1, by = 0.1)
+
+power <- sapply(delta_grid, function(d) {
+  cat("delta =", d,  "\n")
+  power_sc3(delta = d, test_fun = wil_test, B = 100)
+})
+
+# ==============================================================================
+# VISUALISATION
+# ==============================================================================
+
+plot(delta_grid,
+     power,
+     type = "b",
+     pch  = 19,
+     col  = "steelblue",
+     xlab = expression(delta),
+     ylab = "Puissance estimée",
+     main = "Courbe de puissance — Scénario 3 (clustering Thomas)",
+     ylim = c(0, 1))
+abline(h = 0.05, lty = 2, col = "red")
+grid()
+```
+
+#### SCÉNARIO 4 : Répulsion (Matérn type II)
+
+```{r}
+# ==============================================================================
+# SCÉNARIO 4 : Étude de puissance — Répulsion (Matérn type II)
+# ==============================================================================
+
+library(spatstat)
+
+# --- paramètres globaux -------------------------------------------------------
+set.seed(0)
+W_GLOBAL          <- owin(c(0, 1), c(0, 1))
+LAMBDA_0_GLOBAL   <- 30
+N_MATCHES_GLOBAL  <- 20
+R_MAX_GLOBAL      <- 0.10
+
+# ==============================================================================
+# FONCTIONS DE SIMULATION
+# ==============================================================================
+
+simulate_sample_H0 <- function(n_matches = N_MATCHES_GLOBAL,
+                               lambda0   = LAMBDA_0_GLOBAL,
+                               W         = W_GLOBAL) {
+  replicate(n = n_matches, expr = {
+    sim_ppp <- rpoispp(lambda = lambda0, win = W)
+    list(coords = cbind(sim_ppp$x, sim_ppp$y))
+  }, simplify = FALSE)
+}
+
+simulate_sample_H1_sc4 <- function(delta,
+                                   n_matches = N_MATCHES_GLOBAL,
+                                   lambda0   = LAMBDA_0_GLOBAL,
+                                   r_max     = R_MAX_GLOBAL,
+                                   W         = W_GLOBAL) {
+  
+  r_hc       <- delta * r_max
+  lambda_mat <- lambda0 * 3
+  
+  replicate(n = n_matches, expr = {
+    if (r_hc == 0) {
+      sim_ppp <- rpoispp(lambda = lambda0, win = W)
+    } else {
+      sim_ppp <- rMaternII(kappa = lambda_mat, r = r_hc, win = W)
+    }
+    list(coords = cbind(sim_ppp$x, sim_ppp$y))
+  }, simplify = FALSE)
+}
+
+# ==============================================================================
+# UNE ITÉRATION DU TEST
+# ==============================================================================
+
+mc_iteration_sc4 <- function(delta,
+                             test_fun,
+                             alpha     = 0.05,
+                             n_matches = N_MATCHES_GLOBAL,
+                             lambda0   = LAMBDA_0_GLOBAL,
+                             r_max     = R_MAX_GLOBAL,
+                             W         = W_GLOBAL,
+                             ...) {
+  
+  pl_H0 <- simulate_sample_H0(n_matches = n_matches, lambda0 = lambda0, W = W)
+  pl_H1 <- simulate_sample_H1_sc4(delta = delta, n_matches = n_matches,
+                                  lambda0 = lambda0, r_max = r_max, W = W)
+  
+  p_value <- test_fun(pl_H0, pl_H1, ...)
+  p_value <= alpha
+}
+
+# ==============================================================================
+# CALCUL DE LA PUISSANCE POUR UN DELTA DONNÉ
+# ==============================================================================
+
+power_sc4 <- function(delta,
+                      test_fun,
+                      B         = 500,
+                      alpha     = 0.05,
+                      n_matches = N_MATCHES_GLOBAL,
+                      lambda0   = LAMBDA_0_GLOBAL,
+                      r_max     = R_MAX_GLOBAL,
+                      W         = W_GLOBAL,
+                      ...) {
+  
+  reject <- logical(B)
+  for (b in seq_len(B)) {
+    reject[b] <- mc_iteration_sc4(
+      delta     = delta,
+      test_fun  = test_fun,
+      alpha     = alpha,
+      n_matches = n_matches,
+      lambda0   = lambda0,
+      r_max     = r_max,
+      W         = W,
+      ...
+    )
+  }
+  mean(reject)
+}
+
+# ==============================================================================
+# COURBE DE PUISSANCE
+# ==============================================================================
+
+delta_grid <- seq(0, 0.1, by = 0.1)
+
+power <- sapply(delta_grid, function(d) {
+  cat("delta =", d, "\n")
+  power_sc4(delta = d, test_fun = wil_test, B = 100)
+})
+
+# ==============================================================================
+# VISUALISATION
+# ==============================================================================
+
+plot(delta_grid,
+     power,
+     type = "b",
+     pch  = 19,
+     col  = "steelblue",
+     xlab = expression(delta),
+     ylab = "Puissance estimée",
+     main = "Courbe de puissance — Scénario 4 (répulsion Matérn II)",
+     ylim = c(0, 1))
+abline(h = 0.05, lty = 2, col = "red")
+grid()
+```
+
+### Utilisation des profondeurs de ddalpha basées sur les courbes
+
+```{r}
+
+```

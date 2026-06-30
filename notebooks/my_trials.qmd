@@ -101,7 +101,7 @@ shots <- nba_data(Player = "stephen curry", season = 2019)
   p_missed = nba_data_depth_missed(data)
   curNdirs <- 250
   figure <- ddplot_nba(p_missed, p_made,Ndirs = curNdirs,
-                    parConst1 = -2, parConst2 = 5, package = F) 
+                    parConst1 = -2, parConst2 = 5, package = T) 
   deepestx <- order(figure$XvsX) ; 
   deepesty <- order(figure$YvsY) ; 
   plot(figure$YvsY[deepesty],type='h',main="Marked Shots")
@@ -235,12 +235,20 @@ source('../R/nba_functions_database.R', chdir = TRUE)
 year <- 2019
 
 files <- c(
-  "Bam_Adebayo_2018_2024.csv",
-  "Stephen_Curry_2015_2022.csv",
-  "Klay_Thompson_2015_2024.csv",
-  "Draymond_Green_2015_2024.csv",
-  "Kyle_Korver_2014_2020.csv",
-  "James_Harden_2015_2024.csv"
+  "Bam_Adebayo_2018_2024.csv",           #1
+  "Stephen_Curry_2015_2022.csv" ,         #2
+  "Klay_Thompson_2015_2024.csv",         #3
+  "Draymond_Green_2015_2024.csv",        #4
+  "Kyle_Korver_2014_2020.csv",           #5
+  "James_Harden_2015_2024.csv",          #6
+  "Evan_Fournier_2015_2024.csv",         #7
+  "Anthony_Davis_2015_2025.csv",         #8
+  "Giannis_Antetokounmpo_2015_2024.csv", #9
+  "Jarrett_Allen_2018_2024.csv",         #10
+  "Alex_Caruso_2018_2024.csv",           #11
+  "Kevin_Durant_2015_2024.csv",          #12
+  "LeBron_James_2015_2024.csv",          #13
+  "Joel_Embiid_2017_2022.csv"            #14
 )
 setwd("../data")
 data_by_player <- lapply(files, function(f) {
@@ -276,7 +284,7 @@ par(mar = c(0,0, 0, 0))
   
   p2 <- plot_season2(shots_by_player[[3]])
   
-  (p1 | p2) 
+  (p1 | p2)  
 dev.off()
 ```
 
@@ -496,7 +504,7 @@ p_made = nba_data_depth_made(data_by_player[[6]])
 p_missed = nba_data_depth_missed(data_by_player[[6]])
 curNdirs <- 250
 figure <- ddplot_nba(p_missed, p_made,Ndirs = curNdirs,
-                  parConst1 = -2, parConst2 = 5, package = F)
+                  parConst1 = -2, parConst2 = 5)
 ```
 
 ```{r}
@@ -651,7 +659,7 @@ p_missed = nba_data_depth_missed(data_by_player[[5]])
 
 curNdirs <- 250
 figure <- ddplot_nba(p_missed, p_made,Ndirs = curNdirs,
-                  parConst1 = -2, parConst2 = 5, package = F)
+                  parConst1 = -2, parConst2 = 5, package = T)
 #=======================================================
 R_missed <- figure$XvsY  # profondeur des tirs manqués par rapport aux réussis
 R_made   <- figure$YvsY  # profondeur des tirs réussis par rapport aux réussis
@@ -898,13 +906,13 @@ for(i in seq_len(n_players)){
 
 ```{r}
 # --- sélection des tirs réussis des deux joueurs ----------------------------
-pl_1 <- nba_data_depth_made(data_by_player[[6]])
-pl_2 <- nba_data_depth_made(data_by_player[[4]])
+pl_1 <- nba_data_depth_made(data_by_player[[10]])
+pl_2 <- nba_data_depth_made(data_by_player[[6]])
 
 wil_test <- function(pl_1, pl_2){
   # --- DD-plot -----------------------------------------------------------------
-  figure <- ddplot_nba(pl_1, pl_2, Ndirs = 250,
-                       parConst1 = -2, parConst2 = 5)
+  # figure <- ddplot_nba(pl_1, pl_2, Ndirs = 250, 
+  #                      parConst1 = -2, parConst2 = 5)
   #---------------test --------------------------
   set.seed(42)
   
@@ -915,7 +923,7 @@ wil_test <- function(pl_1, pl_2){
   
   idx_ref   <- sample(n1, size = floor(per * n1), replace = FALSE)
   pl_1_ref  <- pl_1[idx_ref]     # Z : référence
-  pl_1_test <- pl_1[-idx_ref]    # X : reste de pl_2
+  pl_1_test <- pl_1[-idx_ref]    # X : reste de pl_1
   
   pl_2_test <- pl_2[sample(n2, size = floor((1-per) * n2), replace = FALSE)]               # Y : tirs réussis du premier joueur (tous)
   
@@ -947,8 +955,8 @@ wil_test <- function(pl_1, pl_2){
     alternative = "two.sided",
     exact = T
   )
-  
-  print(res_wilcox)
+  return(res_wilcox$p.value)
+  #print(res_wilcox)
 }
 #--------------------------------
 wil_test(pl_1 , pl_2)
@@ -957,12 +965,14 @@ wil_test(pl_2 , pl_1)
 
 ## Méthode 2 & 3 : stats_Fonction_repartition et stats_Kolmogorow
 
+#### Avec Pool-sample
+
 ```{r}
 
-pl_1 <- nba_data_depth_made(data_by_player[[6]])
-pl_2 <- nba_data_depth_made(data_by_player[[5]])
+pl_1 <- nba_data_depth_made(data_by_player[[10]])
+pl_2 <- nba_data_depth_made(data_by_player[[6]])
 
-methode_2 <- function(pl_1, pl_2){
+methode_1 <- function(pl_1, pl_2){
   set.seed(0)
   # --- DD-plot -----------------------------------------------------------------
   # figure <- ddplot_nba(pl_1, pl_2, Ndirs = 250,
@@ -986,46 +996,121 @@ methode_2 <- function(pl_1, pl_2){
   D_Y <- D_Z[(n+1):N]
   
   # --- fonctions de répartition empiriques ------------------------------------
-  all_D    <- c(D_X, D_Y)
-  F_X_vals <- sapply(all_D, function(t) mean(D_X <= t))
-  F_Y_vals <- sapply(all_D, function(t) mean(D_Y <= t))
-  
+  # all_D    <- c(D_X, D_Y)
+  # F_X_vals <- sapply(all_D, function(t) mean(D_X <= t))
+  # F_Y_vals <- sapply(all_D, function(t) mean(D_Y <= t))
+  # 
   # --- statistique T(m,n) observée --------------------------------------------
-  T_obs <- max(abs(F_X_vals - F_Y_vals))
+  #T_obs <- max(abs(F_X_vals - F_Y_vals))
+  T_obs <- ks.test(D_X , D_Y)$statistic
   #T_obs <- (1/N) * sum((F_X_vals - F_Y_vals)^2)
   
   T_obs
   
   # --- permutations ------------------------------------------------------------
-  B <- 999
+  B <- 499
   set.seed(0)
   T_perm <- sapply(seq_len(B), function(b) {
     perm  <- sample(N)
     D_X_b <- D_Z[perm[1:n]]
     D_Y_b <- D_Z[perm[(n+1):N]]
-  
-    all_D_b  <- c(D_X_b, D_Y_b)
-    F_X_b    <- sapply(all_D_b, function(t) mean(D_X_b <= t))
-    F_Y_b    <- sapply(all_D_b, function(t) mean(D_Y_b <= t))
-  
+    
+    # all_D_b  <- c(D_X_b, D_Y_b)
+    # F_X_b    <- sapply(all_D_b, function(t) mean(D_X_b <= t))
+    # F_Y_b    <- sapply(all_D_b, function(t) mean(D_Y_b <= t))
+    # 
+    ks.test(D_X_b, D_Y_b)$statistic
     #(1/N) * sum((F_X_b - F_Y_b)^2)
-    max(abs(F_X_b - F_Y_b))
+    #max(abs(F_X_b - F_Y_b))
   })
   
   # --- p-valeur ----------------------------------------------------------------
   p_value <- (sum(T_perm >= T_obs) + 1) / (B + 1)
-  cat("T_obs =", T_obs, " p-value =", p_value, "\n")
+  #cat("T_obs =", T_obs, " p-value =", p_value, "\n")
+  return( p_value)
+}
+
+methode_1( pl_1, pl_2)
+```
+
+#### Sans Pool-sample
+
+```{r}
+
+pl_1 <- nba_data_depth_made(data_by_player[[10]])
+pl_2 <- nba_data_depth_made(data_by_player[[6]])
+
+methode_2 <- function(pl_1, pl_2){
+  set.seed(0)
+  # --- DD-plot -----------------------------------------------------------------
+  # figure <- ddplot_nba(pl_1, pl_2, Ndirs = 250,
+  #                      parConst1 = -2, parConst2 = 5)
+  #------------------------------------------------------------------------------
+  
+  X <- pl_1
+  Y <- pl_2
+  n <- length(X)
+  m <- length(Y)
+  N <- n + m
+  
+  Z <- c(X, Y)
+  set.seed(0)
+  # --- profondeurs par rapport à sa propre population ----------------------
+  D_X <- depths.Tukey(X, X, nDirs = 250,
+                      subs = FALSE, exactEst = FALSE,
+                      parConst1 = -2, parConst2 = 5)
+  D_Y <- depths.Tukey(Y, Y, nDirs = 250,
+                      subs = FALSE, exactEst = FALSE,
+                      parConst1 = -2, parConst2 = 5)
+  
+  # --- fonctions de répartition empiriques ------------------------------------
+  # F_X_vals <- sapply(all_D, function(t) mean(D_X <= t))
+  # F_Y_vals <- sapply(all_D, function(t) mean(D_Y <= t))
+  # 
+  # --- statistique T(m,n) observée --------------------------------------------
+  #T_obs <- max(abs(F_X_vals - F_Y_vals))
+  T_obs <- ks.test(D_X , D_Y)$statistic
+  #T_obs <- (1/N) * sum((F_X_vals - F_Y_vals)^2)
+  T_obs
+  
+  # --- permutations ------------------------------------------------------------
+  B <- 199
+  set.seed(0)
+  T_perm <- sapply(seq_len(B), function(b) {
+    perm  <- sample(N)
+    X_b <- Z[perm[1:n]]
+    Y_b <- Z[perm[(n+1):N]]
+    D_X_b <- depths.Tukey(X_b, X_b, nDirs = 250,
+                        subs = FALSE, exactEst = FALSE,
+                        parConst1 = -2, parConst2 = 5)
+    D_Y_b <- depths.Tukey(Y_b, Y_b, nDirs = 250,
+                        subs = FALSE, exactEst = FALSE,
+                        parConst1 = -2, parConst2 = 5)
+  
+    # all_D_b  <- c(D_X_b, D_Y_b)
+    # F_X_b    <- sapply(all_D_b, function(t) mean(D_X_b <= t))
+    # F_Y_b    <- sapply(all_D_b, function(t) mean(D_Y_b <= t))
+    # 
+    #(1/N) * sum((F_X_b - F_Y_b)^2)
+    #max(abs(F_X_b - F_Y_b))
+    ks.test(D_X_b, D_Y_b)$statistic
+  })
+  
+  # --- p-valeur ----------------------------------------------------------------
+  p_value <- (sum(T_perm >= T_obs) + 1) / (B + 1)
+  # cat("T_obs =", T_obs, " p-value =", p_value, "\n")
+  return( p_value)
 }
 
 methode_2( pl_1, pl_2)
 ```
 
-## Méthode 4 :Wilcoxon classique
+###### Méthode 4 :Wilcoxon classique
 
 ```{r}
 
-  pl_1 <- nba_data_depth_made(data_by_player[[6]])
-  pl_2 <- nba_data_depth_made(data_by_player[[5]])
+  pl_1 <- nba_data_depth_made(data_by_player[[10]])
+  pl_2 <- nba_data_depth_made(data_by_player[[6]])
   
  
   

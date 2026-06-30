@@ -16,7 +16,7 @@ source('../R/nba_functions_database.R', chdir = TRUE)
 
 ```{r}
 curry_db <- nba_player_db(
-   Player     = "Evan Fournier",
+   Player     = "Giannis Antetokounmpo",
    seasons    = 2015:2024,
    export_csv = TRUE
  )
