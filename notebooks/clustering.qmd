@@ -9,7 +9,7 @@ library(httr)
 library(jsonlite)
 library(dplyr)
 
-source("../R/nba-functions.R") #add echo = T to see more details
+source("../R/nba-functions.R") #add echo = T to see more details source("./geometric-depth-r/R/nba-functions.R")
 ```
 
 ```{r}
@@ -523,7 +523,7 @@ mean(sil[,3])
 ## Matrice de distance entre match d'un joueur
 
 ```{r}
-matchs_joueur <- nba_data_depth_made(data_by_player[[9]])
+matchs_joueur <- nba_data_depth_made(data_by_player[[10]])
 #matchs_joueur <- data_by_player[[14]]
 
 # 2. Initialisation de la matrice de distance pour ce joueur
@@ -704,8 +704,8 @@ table(partition_finale)
 ```
 
 ```{r}
-partition_finale <- numeric(n_matchs)
-names(partition_finale) <- rownames(D_matchs)
+partition_f <- numeric(n_matchs)
+names(partition_f) <- rownames(D_matchs)
 k_clusters <- max(cluster_assignments)
 
 for (i in 1:n_matchs) {
@@ -715,20 +715,27 @@ for (i in 1:n_matchs) {
     distances_cibles <- D_matchs[i, matchs_du_cluster_j]
     dist_to_clusters[j] <- min(distances_cibles)
   }
-  partition_finale[i] <- which.min(dist_to_clusters)
+  partition_f[i] <- which.min(dist_to_clusters)
 }
-table(partition_finale)
+table(partition_f)
 ```
 
 ```{r}
 set.seed(42)
 
+
+partition <- partition_finale
+partition <- partition_f
+
+D_matchs = dists
+
 proj_mds <- cmdscale(D_matchs, k = 2)
 plot_global_df<- data.frame(
   Dim1    = proj_mds[, 1],
   Dim2    = proj_mds[, 2],
-  Match = rownames(D_matchs),
-  Cluster = as.factor(partition_finale)
+  Match = rownames(matchs_joueur),
+  Cluster = as.factor(partition)
+ 
 )
 
 ggplot(plot_global_df, aes(x = Dim1, y = Dim2, color = Cluster, label = Match)) +
@@ -752,7 +759,7 @@ deepesty <- order(figure)
 noms_matchs_pures <- names(matchs_joueur)
 noms_matchs_ordonnes <- noms_matchs_pures[deepesty]
 
-clusters_ordonnes <- as.factor(partition_finale[noms_matchs_ordonnes])
+clusters_ordonnes <- as.factor(partition[noms_matchs_ordonnes])
 
 df_plot <- data.frame(
   x = seq_along(figure),
@@ -762,6 +769,7 @@ df_plot <- data.frame(
 
 p5 <- ggplot(df_plot, aes(x = x, y = y, color = Cluster)) +
   geom_segment(aes(xend = x, yend = 0), linewidth = 0.7) +
+  geom_point(size = 1) +
   xlab("Matchs ordonnés par profondeur") +
   ylab("Profondeur de Tukey") +
   ggtitle("Profondeurs des matchs colorées par Cluster") +
@@ -773,85 +781,123 @@ p5
 ## DDclust
 
 ```{r}
+###############################################################
+## Construction des clusters
+###############################################################
 
-K <- length(unique(partition_finale))
+K <- length(unique(partition))
+
 clusters <- vector("list", K)
-for(k in 1:K){
-  ids <- names(partition_finale)[partition_finale == k]
+
+for (k in seq_len(K)) {
+  ids <- names(partition)[partition == k]
   clusters[[k]] <- matchs_joueur[ids]
 }
-#=========================================================
-Depth_within <- numeric(length(matchs_joueur))
-names(Depth_within) <- names(matchs_joueur)
 
-for(i in seq_along(matchs_joueur)){
-  id <- names(matchs_joueur)[i]
-  k  <- partition_finale[id]
+###############################################################
+## Profondeur dans son propre cluster
+###############################################################
+
+match_names <- names(matchs_joueur)
+
+Depth_within <- numeric(length(matchs_joueur))
+names(Depth_within) <- match_names
+
+for (i in seq_along(matchs_joueur)) {
+
+  id <- match_names[i]
+  k  <- partition[id]
+
   Depth_within[i] <- depths.Tukey(
-    list(matchs_joueur[[i]]),
-    clusters[[k]],
-    nDirs = 250,
-    subs = FALSE,
-    exactEst = FALSE,
-    parConst1 = -2,
-    parConst2 = 5
+    objects     = list(matchs_joueur[[i]]),
+    data        = clusters[[k]],
+    nDirs       = 250,
+    subs        = FALSE,
+    exactEst    = FALSE,
+    parConst1   = -2,
+    parConst2   = 5
   )
 }
 
-#===================================================================
-Depth_other <- numeric(length(matchs_joueur))
-names(Depth_other) <- names(matchs_joueur)
+###############################################################
+## Meilleure profondeur dans les autres clusters
+###############################################################
 
-for(i in seq_along(matchs_joueur)){
-  
-  id <- names(matchs_joueur)[i]
-  k  <- partition_finale[id]
-  
-  other_depths <- c()
-  
-  for(j in setdiff(1:K, k)){
-    
-    d <- depths.Tukey(
-      list(matchs_joueur[[i]]),
-      clusters[[j]],
-      nDirs = 250,
-      subs = FALSE,
-      exactEst = FALSE,
-      parConst1 = -2,
-      parConst2 = 5
+Depth_other <- numeric(length(matchs_joueur))
+names(Depth_other) <- match_names
+
+for (i in seq_along(matchs_joueur)) {
+
+  id <- match_names[i]
+  k  <- partition[id]
+
+  other_clusters <- setdiff(seq_len(K), k)
+
+  other_depths <- numeric(length(other_clusters))
+
+  for (h in seq_along(other_clusters)) {
+
+    j <- other_clusters[h]
+
+    other_depths[h] <- depths.Tukey(
+      objects     = list(matchs_joueur[[i]]),
+      data        = clusters[[j]],
+      nDirs       = 250,
+      subs        = FALSE,
+      exactEst    = FALSE,
+      parConst1   = -2,
+      parConst2   = 5
     )
-    other_depths <- c(other_depths, d)
   }
-  Depth_other[i] <- min(other_depths)
+
+  ## DDClust uses the BEST competing depth
+  Depth_other[i] <- max(other_depths)
 }
-#===================================================
+
+###############################################################
+## Relative Data Depth
+###############################################################
+
 RelativeDepth <- Depth_within - Depth_other
 
-#==================================================
+###############################################################
+## Results
+###############################################################
+
 results <- data.frame(
-  Match = names(matchs_joueur),
-  Cluster = partition_finale,
+  Match = match_names,
+  Cluster = as.integer(partition[match_names]),
   Depth_within = Depth_within,
   Depth_other = Depth_other,
-  RelativeDepth = RelativeDepth
+  RelativeDepth = RelativeDepth,
+  row.names = NULL
 )
-
 library(dplyr)
 results %>%
   group_by(Cluster) %>%
-  arrange(desc(RelativeDepth), .by_group = TRUE)
+  arrange(desc(RelativeDepth), .by_group = TRUE) %>%
+  print(n = 30)
 ```
 
 ```{r}
-sil <- silhouette(partition_finale,
+sil <- silhouette(partition,
                   as.dist(D_matchs))
 mean(sil[,3])
+
+
+
+# 1. Génère le graphique de base
+plot(sil, 
+     main = "Diagramme de Silhouette",
+     xlab = "Coefficient de silhouette",
+     col  = "steelblue", # Couleur des barres
+     border = NA)         # Enlève les bordures noires des barres pour un rendu plus propre
 ```
 
 ```{r}
 
-p11 <- plot_match2(matchs_joueur, idMatch = "21800870")
-p12 <- plot_match2(matchs_joueur, idMatch = "21801043")
+p11 <- plot_match2(matchs_joueur, idMatch = "21801153")
+p12 <- plot_match2(matchs_joueur, idMatch = "21800089")
 (p11 + p12 )
 
 ```
@@ -859,16 +905,17 @@ p12 <- plot_match2(matchs_joueur, idMatch = "21801043")
 ```{r}
 library(patchwork)
 
-clusters <- sort(unique(partition_finale))
+clusters <- sort(unique(partition))
 plots_clusters <- lapply(clusters, function(cl){
   
-  matchs_cluster <- matchs_joueur[names(partition_finale)[partition_finale == cl]]
+  matchs_cluster <- matchs_joueur[names(partition)[partition == cl]]
   shots_cluster <- do.call(
     rbind,
     lapply(names(matchs_cluster), function(id){
       
       match <- matchs_cluster[[id]]
-      
+      if (is.null(match$coords) || nrow(match$coords) == 0)
+        return(NULL)
       data.frame(
         idGame    = id,
         dateGame  = match$date,
@@ -895,8 +942,8 @@ wrap_plots(plots_clusters, ncol =2)
 
 ```{r}
 # --- extraction des processus par cluster ------------------------------------
-cluster_1 <- matchs_joueur[names(partition_finale)[partition_finale == 1]]
-cluster_2 <- matchs_joueur[names(partition_finale)[partition_finale == 2]]
+cluster_1 <- matchs_joueur[names(partition)[partition == 1]]
+cluster_2 <- matchs_joueur[names(partition)[partition == 2]]
 
 # --- DD-plot entre les deux clusters -----------------------------------------
 figure_clusters <- ddplot_nba(cluster_1, cluster_2, Ndirs = 250,

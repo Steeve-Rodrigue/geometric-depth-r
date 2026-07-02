@@ -184,11 +184,11 @@ power_sc1 <- function(delta,
 # COURBE DE PUISSANCE
 # ==============================================================================
 
-delta_grid <- seq(0.5, 0.52, by = 0.01)
+delta_grid <- seq(0, 2, by = 0.1)
 
 power <- sapply(delta_grid, function(d) {
   cat("delta =", d, "\n")
-  power_sc1(delta = d, test_fun = wil_test, B = 500)
+  power_sc1(delta = d, test_fun = wil_test, B = 200)
 })
 
 # ==============================================================================
@@ -199,7 +199,7 @@ plot(delta_grid,
      power,
      type = "b",
      pch  = 19,
-     col  = "steelblue",
+     col  = "darkviolet",
      xlab = expression(delta),
      ylab = "Puissance estimée",
      main = "Courbe de puissance — Scénario 1 (intensité globale)",

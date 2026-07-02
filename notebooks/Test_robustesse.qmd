@@ -16,8 +16,8 @@ library(spatstat)
 # --- paramètres globaux -------------------------------------------------------
 set.seed(0)
 W_GLOBAL          <- owin(c(0, 1), c(0, 1))
-LAMBDA_0_GLOBAL   <- 30
-N_MATCHES_GLOBAL  <- 20
+LAMBDA_0_GLOBAL   <- 20
+N_MATCHES_GLOBAL  <- 15
 
 # ==============================================================================
 # FONCTIONS DE SIMULATION
@@ -75,7 +75,7 @@ mc_iteration_sc1 <- function(delta,
 #' Estime la puissance du test pour un delta fixé, par répétition Monte-Carlo
 power_sc1 <- function(delta,
                       test_fun,
-                      B         = 500,
+                      B         = 150,
                       alpha     = 0.05,
                       n_matches = N_MATCHES_GLOBAL,
                       lambda0   = LAMBDA_0_GLOBAL,
@@ -100,42 +100,65 @@ power_sc1 <- function(delta,
 
 delta_grid <- seq(0, 1, by = 0.1)
 
-power <- sapply(delta_grid, function(d) {
+power_wil_test <- sapply(delta_grid, function(d) {
   cat("delta =", d, "\n")
   power_sc1(delta = d, test_fun = wil_test, B = 100)
 })
 
+power_pool_method <- sapply(delta_grid, function(d) {
+  cat("delta =", d, "\n")
+  power_sc1(delta = d, test_fun = pool_method, B = 100)
+})
+# 
+power_no_pool_method <- sapply(delta_grid, function(d) {
+  cat("delta =", d, "\n")
+  power_sc1(delta = d, test_fun = no_pool_method, B = 50)
+})
 # ==============================================================================
-# VISUALISATION
+# VISUALISATION MULTI-MÉTHODES
 # ==============================================================================
 
+# 1. Première méthode (ex: wil_test) - Initialise le graphique
 plot(delta_grid,
-     power,
+     power_wil_test,          
      type = "b",
      pch  = 19,
-     col  = "steelblue",
+     cex  = 0.6,              # Réduit la taille des ronds
+     col  = "darkviolet",
      xlab = expression(delta),
      ylab = "Puissance estimée",
      main = "Courbe de puissance — Scénario 1 (intensité globale)",
      ylim = c(0, 1))
-abline(h = 0.05, lty = 2, col = "red")
+
+# 2. Deuxième méthode - Superposition
+lines(delta_grid,
+      power_pool_method,         
+      type = "b",
+      pch  = 19,
+      cex  = 0.6,              # Même taille réduite
+      col  = "blue")
+
+# 3. Troisième méthode - Superposition
+lines(delta_grid,
+      power_no_pool_method,         
+      type = "b",
+      pch  = 19,
+      cex  = 0.6,              # Même taille réduite
+      col  = "green")
+
+# --- Éléments de légende et repères -------------------------------------------
+abline(h = 0.05, lty = 2, col = "red") # Ligne de niveau alpha = 5%
 grid()
-```
 
-```{r}
-# comparer plusieurs méthodes sur le même graphique
-power_methode1 <- sapply(delta_grid, function(d) power_sc1(d, test_fun = methode_1, B = 200))
-power_methode2 <- sapply(delta_grid, function(d) power_sc1(d, test_fun = methode_2, B = 200))
-
-plot(delta_grid, power_methode1, type = "b", pch = 19, col = "steelblue",
-     xlab = expression(delta), ylab = "Puissance estimée", ylim = c(0, 1))
-
-lines(delta_grid, power_methode2, type = "b", pch = 17, col = "firebrick")
-
-legend("bottomright", legend = c("Méthode 1", "Méthode 2"),
-       col = c("steelblue", "firebrick"), pch = c(19, 17), lty = 1)
-
-abline(h = 0.05, lty = 2, col = "grey50")
+# Ajout d' une légende pour distinguer les 3 méthodes
+legend("topleft",
+       legend = c("Wilcoxon (Tukey)", "pool_method_ks", "no_pool_ks"),
+       col = c("darkviolet", "blue", "green"),
+       lty = 1,
+       pch = 19,
+       pt.cex = 0.6,
+       cex = 0.6,# Réduit aussi la taille des ronds dans la légende
+       bty = "n")              # Enlève le cadre de la légende
 ```
 
 ### SCÉNARIO 2 : Gradient spatial (inhomogénéité)
@@ -150,8 +173,8 @@ library(spatstat)
 # --- paramètres globaux -------------------------------------------------------
 set.seed(0)
 W_GLOBAL          <- owin(c(0, 1), c(0, 1))
-LAMBDA_0_GLOBAL   <- 30
-N_MATCHES_GLOBAL  <- 20
+LAMBDA_0_GLOBAL   <- 20
+N_MATCHES_GLOBAL  <- 15
 
 # ==============================================================================
 # FONCTIONS DE SIMULATION
@@ -208,7 +231,7 @@ mc_iteration_sc2 <- function(delta,
 #' Estime la puissance du test pour un delta fixé, par répétition Monte-Carlo
 power_sc2 <- function(delta,
                       test_fun,
-                      B         = 500,
+                      B         = 150,
                       alpha     = 0.05,
                       n_matches = N_MATCHES_GLOBAL,
                       lambda0   = LAMBDA_0_GLOBAL,
@@ -230,32 +253,73 @@ power_sc2 <- function(delta,
   mean(reject)
 }
 
+
 # ==============================================================================
 # COURBE DE PUISSANCE
 # ==============================================================================
 
-delta_grid <- seq(0.5, 1.5, by = 0.1)
+delta_grid <- seq(0, 1, by = 0.1)
 
-power <- sapply(delta_grid, function(d) {
+power_wil_test <- sapply(delta_grid, function(d) {
   cat("delta =", d, "\n")
   power_sc2(delta = d, test_fun = wil_test, B = 100)
 })
 
+power_pool_method <- sapply(delta_grid, function(d) {
+  cat("delta =", d, "\n")
+  power_sc2(delta = d, test_fun = pool_method, B = 100)
+})
+# 
+power_no_pool_method <- sapply(delta_grid, function(d) {
+  cat("delta =", d, "\n")
+  power_sc2(delta = d, test_fun = no_pool_method, B = 50)
+})
 # ==============================================================================
-# VISUALISATION
+# VISUALISATION MULTI-MÉTHODES
 # ==============================================================================
 
+# 1. Première méthode (ex: wil_test) - Initialise le graphique
 plot(delta_grid,
-     power,
+     power_wil_test,          # Remplace par ton premier vecteur de puissance
      type = "b",
      pch  = 19,
-     col  = "steelblue",
+     cex  = 0.6,              # Réduit la taille des ronds
+     col  = "darkviolet",
      xlab = expression(delta),
      ylab = "Puissance estimée",
-     main = "Courbe de puissance — Scénario 2 (gradient spatial)",
+     main = "Courbe de puissance — Scénario 2: Gradient spatial (inhomogénéité)",
      ylim = c(0, 1))
-abline(h = 0.05, lty = 2, col = "red")
+
+# 2. Deuxième méthode - Superposition
+lines(delta_grid,
+      power_pool_method,         # Remplace par ton deuxième vecteur de puissance
+      type = "b",
+      pch  = 19,
+      cex  = 0.6,              # Même taille réduite
+      col  = "blue")
+
+# 3. Troisième méthode - Superposition
+lines(delta_grid,
+      power_no_pool_method,         # Remplace par ton troisième vecteur de puissance
+      type = "b",
+      pch  = 19,
+      cex  = 0.6,              # Même taille réduite
+      col  = "green")
+
+# --- Éléments de légende et repères -------------------------------------------
+abline(h = 0.05, lty = 2, col = "red") # Ligne de niveau alpha = 5%
 grid()
+
+
+# Ajout d' une légende pour distinguer les 3 méthodes
+legend("topleft",
+       legend = c("Wilcoxon (Tukey)", "pool_method_ks", "no_pool_ks"),
+       col = c("darkviolet", "blue", "green"),
+       lty = 1,
+       pch = 19,
+       pt.cex = 0.6,
+       cex = 0.6,# Réduit aussi la taille des ronds dans la légende
+       bty = "n")              # Enlève le cadre de la légende
 ```
 
 ### SCÉNARIO 3 : Clustering (processus de Thomas)
@@ -270,8 +334,8 @@ library(spatstat)
 # --- paramètres globaux -------------------------------------------------------
 set.seed(0)
 W_GLOBAL          <- owin(c(0, 1), c(0, 1))
-LAMBDA_0_GLOBAL   <- 30
-N_MATCHES_GLOBAL  <- 20
+LAMBDA_0_GLOBAL   <- 20
+N_MATCHES_GLOBAL  <- 15
 KAPPA_GLOBAL      <- 10   # nombre moyen de centres de clusters
 
 # ==============================================================================
@@ -335,7 +399,7 @@ mc_iteration_sc3 <- function(delta,
 #' Estime la puissance du test pour un delta fixé, par répétition Monte-Carlo
 power_sc3 <- function(delta,
                       test_fun,
-                      B         = 500,
+                      B         = 150,
                       alpha     = 0.05,
                       n_matches = N_MATCHES_GLOBAL,
                       lambda0   = LAMBDA_0_GLOBAL,
@@ -363,28 +427,68 @@ power_sc3 <- function(delta,
 # COURBE DE PUISSANCE
 # ==============================================================================
 
-delta_grid <- seq(0.5, 1, by = 0.1)
+delta_grid <- seq(0, 1, by = 0.1)
 
-power <- sapply(delta_grid, function(d) {
-  cat("delta =", d,  "\n")
+power_wil_test <- sapply(delta_grid, function(d) {
+  cat("delta =", d, "\n")
   power_sc3(delta = d, test_fun = wil_test, B = 100)
 })
 
+power_pool_method <- sapply(delta_grid, function(d) {
+  cat("delta =", d, "\n")
+  power_sc3(delta = d, test_fun = pool_method, B = 100)
+})
+# 
+# power_no_pool_method <- sapply(delta_grid, function(d) {
+#   cat("delta =", d, "\n")
+#   power_sc1(delta = d, test_fun = no_pool_method, B = 50)
+# })
 # ==============================================================================
-# VISUALISATION
+# VISUALISATION MULTI-MÉTHODES
 # ==============================================================================
 
+# 1. Première méthode (ex: wil_test) - Initialise le graphique
 plot(delta_grid,
-     power,
+     power_wil_test,          # Remplace par ton premier vecteur de puissance
      type = "b",
      pch  = 19,
-     col  = "steelblue",
+     cex  = 0.6,              # Réduit la taille des ronds
+     col  = "darkviolet",
      xlab = expression(delta),
      ylab = "Puissance estimée",
-     main = "Courbe de puissance — Scénario 3 (clustering Thomas)",
+     main = "Courbe de puissance — Scénario 3 :Clustering (processus de Thomas)",
      ylim = c(0, 1))
-abline(h = 0.05, lty = 2, col = "red")
+
+# 2. Deuxième méthode - Superposition
+lines(delta_grid,
+      power_pool_method,         # Remplace par ton deuxième vecteur de puissance
+      type = "b",
+      pch  = 19,
+      cex  = 0.6,              # Même taille réduite
+      col  = "blue")
+
+# 3. Troisième méthode - Superposition
+# lines(delta_grid,
+#       power_no_pool_method,         # Remplace par ton troisième vecteur de puissance
+#       type = "b",
+#       pch  = 19,
+#       cex  = 0.6,              # Même taille réduite
+#       col  = "green")
+
+# --- Éléments de légende et repères -------------------------------------------
+abline(h = 0.05, lty = 2, col = "red") # Ligne de niveau alpha = 5%
 grid()
+
+
+# Ajout d' une légende pour distinguer les 3 méthodes
+legend("topleft",
+       legend = c("Wilcoxon (Tukey)", "pool_method_ks", "no_pool_ks"),
+       col = c("darkviolet", "blue", "green"),
+       lty = 1,
+       pch = 19,
+       pt.cex = 0.6,
+       cex = 0.6,# Réduit aussi la taille des ronds dans la légende
+       bty = "n")              # Enlève le cadre de la légende
 ```
 
 #### SCÉNARIO 4 : Répulsion (Matérn type II)
@@ -399,8 +503,8 @@ library(spatstat)
 # --- paramètres globaux -------------------------------------------------------
 set.seed(0)
 W_GLOBAL          <- owin(c(0, 1), c(0, 1))
-LAMBDA_0_GLOBAL   <- 30
-N_MATCHES_GLOBAL  <- 20
+LAMBDA_0_GLOBAL   <- 20
+N_MATCHES_GLOBAL  <- 15
 R_MAX_GLOBAL      <- 0.10
 
 # ==============================================================================
@@ -462,7 +566,7 @@ mc_iteration_sc4 <- function(delta,
 
 power_sc4 <- function(delta,
                       test_fun,
-                      B         = 500,
+                      B         = 150,
                       alpha     = 0.05,
                       n_matches = N_MATCHES_GLOBAL,
                       lambda0   = LAMBDA_0_GLOBAL,
@@ -486,36 +590,71 @@ power_sc4 <- function(delta,
   mean(reject)
 }
 
+
 # ==============================================================================
 # COURBE DE PUISSANCE
 # ==============================================================================
 
-delta_grid <- seq(0, 0.1, by = 0.1)
+delta_grid <- seq(0, 1, by = 0.1)
 
-power <- sapply(delta_grid, function(d) {
+power_wil_test <- sapply(delta_grid, function(d) {
   cat("delta =", d, "\n")
   power_sc4(delta = d, test_fun = wil_test, B = 100)
 })
 
+power_pool_method <- sapply(delta_grid, function(d) {
+  cat("delta =", d, "\n")
+  power_sc4(delta = d, test_fun = pool_method, B = 100)
+})
+# 
+# power_no_pool_method <- sapply(delta_grid, function(d) {
+#   cat("delta =", d, "\n")
+#   power_sc1(delta = d, test_fun = no_pool_method, B = 50)
+# })
 # ==============================================================================
-# VISUALISATION
+# VISUALISATION MULTI-MÉTHODES
 # ==============================================================================
 
+# 1. Première méthode (ex: wil_test) - Initialise le graphique
 plot(delta_grid,
-     power,
+     power_wil_test,          # Remplace par ton premier vecteur de puissance
      type = "b",
      pch  = 19,
-     col  = "steelblue",
+     cex  = 0.6,              # Réduit la taille des ronds
+     col  = "darkviolet",
      xlab = expression(delta),
      ylab = "Puissance estimée",
-     main = "Courbe de puissance — Scénario 4 (répulsion Matérn II)",
+     main = "Courbe de puissance — Scénario 4: Répulsion (Matérn type II)",
      ylim = c(0, 1))
-abline(h = 0.05, lty = 2, col = "red")
+
+# 2. Deuxième méthode - Superposition
+lines(delta_grid,
+      power_pool_method,         # Remplace par ton deuxième vecteur de puissance
+      type = "b",
+      pch  = 19,
+      cex  = 0.6,              # Même taille réduite
+      col  = "blue")
+
+# 3. Troisième méthode - Superposition
+# lines(delta_grid,
+#       power_no_pool_method,         # Remplace par ton troisième vecteur de puissance
+#       type = "b",
+#       pch  = 19,
+#       cex  = 0.6,              # Même taille réduite
+#       col  = "green")
+
+# --- Éléments de légende et repères -------------------------------------------
+abline(h = 0.05, lty = 2, col = "red") # Ligne de niveau alpha = 5%
 grid()
-```
 
-### Utilisation des profondeurs de ddalpha basées sur les courbes
 
-```{r}
-
+# Ajout d' une légende pour distinguer les 3 méthodes
+legend("topleft",
+       legend = c("Wilcoxon (Tukey)", "pool_method_ks", "no_pool_ks"),
+       col = c("darkviolet", "blue", "green"),
+       lty = 1,
+       pch = 19,
+       pt.cex = 0.6,
+       cex = 0.6,# Réduit aussi la taille des ronds dans la légende
+       bty = "n")              # Enlève le cadre de la légende
 ```
