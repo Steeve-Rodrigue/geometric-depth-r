@@ -47,22 +47,6 @@ figure <- ddplot_nba(p_missed, p_made,Ndirs = curNdirs,
                   parConst1 = -2, parConst2 = 5) 
 ```
 
-```{r}
-
-```
-
-```{r}
-
-```
-
-```{r}
-
-```
-
-```{r}
-
-```
-
 ## Test get_player_id
 
 ```{r}
@@ -70,93 +54,110 @@ id <- get_player_id("stephen curry")
 print(id)
 ```
 
-## Test shot retrieval (hardcoded player ID)
+## Desing Database_Player
 
 ```{r}
-# LeBron James player ID = 2544 (hardcoded to bypass get_player_id)
-player_id <- id
-season_str <- "2018-19"
+# =============================================================================
+# Liste des joueurs et première saison NBA (Corrigé)
+# =============================================================================
 
-resp <- httr::GET(
-  "https://stats.nba.com/stats/shotchartdetail",
-  query = list(
-    PlayerID       = player_id,
-    Season         = season_str,
-    SeasonType     = "Regular Season",
-    TeamID         = 0, GameID        = "",
-    ContextMeasure = "FGA",
-    DateFrom       = "", DateTo        = "",
-    GameSegment    = "", LastNGames    = 0,
-    LeagueID       = "00", Location   = "",
-    Month          = 0, OpponentTeamID = 0,
-    Outcome        = "", Period        = 0,
-    Position       = "", RookieYear    = "",
-    SeasonSegment  = "", VsConference  = "",
-    VsDivision     = ""
+data_players <- data.frame(
+  Player = c(
+    "Luka Doncic","Trae Young","Damian Lillard","Shai Gilgeous-Alexander",
+    "Ja Morant","Tyrese Haliburton","De'Aaron Fox","Kyrie Irving",
+    "Jalen Brunson","LaMelo Ball","Darius Garland","Jrue Holiday",
+    "Chris Paul","Russell Westbrook","Cade Cunningham","Scoot Henderson",
+    "Mike Conley","Fred VanVleet","Derrick White","Tyus Jones",
+    "Immanuel Quickley","Devin Booker","Donovan Mitchell","Anthony Edwards",
+    "Bradley Beal","Jaylen Brown","Zach LaVine","DeMar DeRozan",
+    "Tyrese Maxey","CJ McCollum","Jamal Murray","Jalen Green",
+    "Buddy Hield","Anfernee Simons","Jordan Poole","Austin Reaves",
+    "Malik Monk","Terry Rozier","Gary Trent Jr.","Bogdan Bogdanovic",
+    "Josh Hart","Kentavious Caldwell-Pope","Caris LeVert","Norman Powell",
+    "Kevin Huerter","Tim Hardaway Jr.","Luke Kennard","Grayson Allen",
+    "Donte DiVincenzo","Alex Caruso","Jayson Tatum","Kawhi Leonard",
+    "Paul George","Jimmy Butler","Brandon Ingram","Mikal Bridges",
+    "Pascal Siakam","Khris Middleton","Andrew Wiggins","Franz Wagner",
+    "Scottie Barnes","De'Andre Hunter","OG Anunoby","Gordon Hayward",
+    "Harrison Barnes","Tobias Harris","Cameron Johnson","Michael Porter Jr.",
+    "Dillon Brooks","Keldon Johnson","Jaden McDaniels","Lauri Markkanen",
+    "Evan Mobley","Julius Randle","Draymond Green","Aaron Gordon",
+    "Jaren Jackson Jr.","Paolo Banchero","Kyle Kuzma","John Collins",
+    "Jabari Smith Jr.","Jerami Grant","Kristaps Porzingis","Bobby Portis",
+    "Rui Hachimura","P.J. Washington","Obi Toppin","Patrick Williams",
+    "Nikola Jokic","Rudy Gobert","Domantas Sabonis","Karl-Anthony Towns",
+    "Victor Wembanyama","Deandre Ayton","Myles Turner","Brook Lopez",
+    "Clint Capela","Walker Kessler","Nic Claxton","Alperen Sengun",
+    "Wendell Carter Jr.","Ivica Zubac","Jonas Valanciunas","Jakob Poeltl",
+    "Daniel Gafford","Mitchell Robinson","Zach Collins","Cole Anthony",
+    "Markelle Fultz","D'Angelo Russell","Spencer Dinwiddie",
+    "Malcolm Brogdon","Dennis Schroder"
   ),
-  httr::add_headers(
-    `User-Agent`         = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    `Referer`            = "https://www.nba.com/",
-    `Origin`             = "https://www.nba.com",
-    `x-nba-stats-origin` = "stats",
-    `x-nba-stats-token`  = "true",
-    `Accept`             = "application/json, text/plain, */*",
-    `Accept-Language`    = "en-US,en;q=0.9",
-    `Connection`         = "keep-alive"
+  FirstSeason = c(
+    2018,2018,2012,2018,
+    2019,2020,2017,2011,
+    2018,2020,2019,2009,
+    2005,2008,2021,2023,
+    2007,2016,2017,2015,
+    2020,2015,2017,2020,
+    2012,2016,2014,2009,
+    2020,2013,2016,2021,
+    2016,2018,2019,2021,
+    2017,2015,2018,2014,
+    2017,2013,2016,2015,
+    2018,2013,2017,2018,
+    2018,2017,2017,2011, # Jayson Tatum (2017), Kawhi (2011)
+    2010,2011,2016,2018,
+    2016,2012,2014,2021,
+    2021,2019,2017,2010,
+    2012,2011,2019,2018,
+    2017,2019,2020,2017, # McDaniels (2020), Markkanen (2017)
+    2021,2014,2012,2014, # Draymond Green remis à sa vraie place (2012)
+    2018,2022,2017,2017,
+    2022,2014,2015,2015,
+    2019,2019,2020,2020,
+    2014,2013,2016,2015,
+    2023,2018,2015,2008,
+    2014,2022,2019,2021,
+    2018,2016,2011,2016, # Valanciunas corrigé à 2011
+    2019,2018,2017,2020,
+    2017,2015,2014,2016,
+    2013
   ),
-  httr::timeout(30)
+  stringsAsFactors = FALSE
 )
-
-cat("HTTP status:", httr::status_code(resp), "\n")
+Player <- data_players[1:5,]
 ```
 
 ```{r}
-# parse only if request succeeded
-parsed <- jsonlite::fromJSON(httr::content(resp, "text", encoding = "UTF-8"))
-hdrs   <- parsed$resultSets$headers[[1]]
-rows   <- parsed$resultSets$rowSet[[1]]
-raw    <- as.data.frame(rows, stringsAsFactors = FALSE)
-colnames(raw) <- hdrs
-cat("Rows retrieved:", nrow(raw), "\n")
-head(raw[, c("PLAYER_NAME", "GAME_ID", "GAME_DATE", "LOC_X", "LOC_Y", "SHOT_MADE_FLAG")])
-```
-
-## Test nba_data
-
-```{r}
-shots <- nba_data(Player = "stephen curry", season = 2022)
-#str(shots)
-head(shots)
-```
-
-```{r}
-library(ggplot2)
-library(gridExtra)
-library(ggpubr) # sudo apt-get install liblapack-dev libblas-dev gfortran
-library(tidyverse)
-library(dplyr)
-library(BasketballAnalyzeR)
-
-library(extrafont)
-library(cowplot)
-library(transport)
-library(curveDepth)
-```
-
-```{r}
-# source("R/nba-functionsbis.R", echo = T)
-data = nba_data_depth(shots)
-```
-
-```{r}
-p_made = nba_data_depth_made(data)
-p_missed = nba_data_depth_missed(data)
-#"made" ;p_made;"missed";p_missed
-```
-
-```{r}
-source("../R/nba-functions.R")
-curNdirs <- 250
-figure <- ddplot_nba(p_missed, p_made,Ndirs = curNdirs,
-                  parConst1 = -2, parConst2 = 5) 
+for(i in seq_len(nrow(Player))){
+  
+  player <- Player$Player[i]
+  
+  start_season <- max(2019, Player$FirstSeason[i])
+  
+  cat("=========================================\n")
+  cat("Player :", player, "\n")
+  cat("Seasons:", start_season, "-", 2024, "\n")
+  
+  tryCatch({
+    
+    nba_player_db(
+      Player     = player,
+      seasons    = start_season:2024,
+      export_csv = TRUE
+    )
+    
+    cat("✓ Success\n")
+    
+  }, error = function(e){
+    
+    cat("✗ Failed :", e$message, "\n")
+    
+  })
+  
+  cat("Waiting 10 seconds before next player...\n\n")
+  Sys.sleep(10)
+  
+}
 ```

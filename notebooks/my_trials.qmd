@@ -917,7 +917,7 @@ wil_test <- function(pl_1, pl_2){
   #set.seed(42)
   
   # --- split pl_2 : 70% référence, 30% test ------------------------------------
-  per <- 0.7
+  per <- 0.51
   n1  <- length(pl_1)
   n2  <- length(pl_2)
   
@@ -929,23 +929,23 @@ wil_test <- function(pl_1, pl_2){
   
   
   # --- profondeurs de Z par rapport à elle-même --------------------------------
-  D_Z <- depths.Tukey(pl_1_ref, pl_1_ref, nDirs = 250,
+  D_Z <- depths.Tukey(pl_1_ref, pl_1_ref, nDirs = 100,
                       subs = FALSE, exactEst = FALSE,
                       parConst1 = -2, parConst2 = 5)
   
   # --- profondeurs de X et Y par rapport à Z -----------------------------------
-  D_X <- depths.Tukey(pl_1_test, pl_1_ref, nDirs = 250,
+  D_X <- depths.Tukey(pl_1_test, pl_1_ref, nDirs = 100,
                       subs = FALSE, exactEst = FALSE,
                       parConst1 = -2, parConst2 = 5)
   
-  D_Y <- depths.Tukey(pl_2_test, pl_1_ref, nDirs = 250,
+  D_Y <- depths.Tukey(pl_2_test, pl_1_ref, nDirs = 100,
                       subs = FALSE, exactEst = FALSE,
                       parConst1 = -2, parConst2 = 5)
   
   # --- conversion en rangs  R(F_n0; .) ---------------------------------
   n0  <- length(pl_1_ref)
-  R_X <- sapply(D_X, function(d) mean(D_Z <= d))
-  R_Y <- sapply(D_Y, function(d) mean(D_Z <= d))
+  R_X <- sapply(D_X, function(d,D_Z) mean(D_Z <= d),D_Z=D_Z)
+  R_Y <- sapply(D_Y, function(d,D_Z) mean(D_Z <= d),D_Z=D_Z)
   
   # --- Wilcoxon rank-sum test ------------------------------------------------
   
@@ -988,7 +988,7 @@ pool_method<- function(pl_1, pl_2){
   Z <- c(X, Y)
   #set.seed(0)
   # --- profondeurs par rapport à l'échantillon combiné Z ----------------------
-  D_Z <- depths.Tukey(Z, Z, nDirs = 250,
+  D_Z <- depths.Tukey(Z, Z, nDirs = 100,
                       subs = FALSE, exactEst = FALSE,
                       parConst1 = -2, parConst2 = 5)
   
@@ -1008,7 +1008,7 @@ pool_method<- function(pl_1, pl_2){
   T_obs
   
   # --- permutations ------------------------------------------------------------
-  B <- 499
+  B <- 99
   #set.seed(0)
   T_perm <- sapply(seq_len(B), function(b) {
     perm  <- sample(N)
@@ -1058,10 +1058,10 @@ no_pool_method <- function(pl_1, pl_2){
   Z <- c(X, Y)
   #set.seed(0)
   # --- profondeurs par rapport à sa propre population ----------------------
-  D_X <- depths.Tukey(X, X, nDirs = 250,
+  D_X <- depths.Tukey(X, X, nDirs = 100,
                       subs = FALSE, exactEst = FALSE,
                       parConst1 = -2, parConst2 = 5)
-  D_Y <- depths.Tukey(Y, Y, nDirs = 250,
+  D_Y <- depths.Tukey(Y, Y, nDirs = 100,
                       subs = FALSE, exactEst = FALSE,
                       parConst1 = -2, parConst2 = 5)
   
@@ -1079,15 +1079,19 @@ no_pool_method <- function(pl_1, pl_2){
   B <- 99
   #set.seed(0)
   T_perm <- sapply(seq_len(B), function(b) {
-    perm  <- sample(N)
-    X_b <- Z[perm[1:n]]
-    Y_b <- Z[perm[(n+1):N]]
-    D_X_b <- depths.Tukey(X_b, X_b, nDirs = 100,
-                        subs = FALSE, exactEst = FALSE,
-                        parConst1 = -2, parConst2 = 5)
-    D_Y_b <- depths.Tukey(Y_b, Y_b, nDirs = 100,
-                        subs = FALSE, exactEst = FALSE,
-                        parConst1 = -2, parConst2 = 5)
+    perm  <- sample(N,n)
+    
+    D_X_b <- D_X[perm]
+    D_Y_b <- D_Y[-perm]
+    
+    # X_b <- Z[perm[1:n]]
+    # Y_b <- Z[perm[(n+1):N]]
+    # D_X_b <- depths.Tukey(X_b, X, nDirs = 250,
+    #                     subs = FALSE, exactEst = FALSE,
+    #                     parConst1 = -2, parConst2 = 5)
+    # D_Y_b <- depths.Tukey(Y_b, Y, nDirs = 250,
+    #                     subs = FALSE, exactEst = FALSE,
+    #                     parConst1 = -2, parConst2 = 5)
   
     # all_D_b  <- c(D_X_b, D_Y_b)
     # F_X_b    <- sapply(all_D_b, function(t) mean(D_X_b <= t))
@@ -1106,8 +1110,6 @@ no_pool_method <- function(pl_1, pl_2){
 
 no_pool_method(pl_1, pl_2)
 ```
-
-###### Méthode 4 :Wilcoxon classique
 
 ```{r}
 

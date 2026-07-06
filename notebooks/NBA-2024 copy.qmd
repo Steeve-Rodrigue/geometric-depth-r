@@ -188,43 +188,43 @@ ggarrange(ptypical1, ptypical2, ptypical3,
 
 #### **Outlier Traits:**
 
--   Dépendance extrême aux trois points :
+- Dépendance extrême aux trois points :
 
-    -   85 % de ses tirs tentés sont des trois points (le plus haut pourcentage de la NBA parmi les tireurs à haut volume).
+  - 85 % de ses tirs tentés sont des trois points (le plus haut pourcentage de la NBA parmi les tireurs à haut volume).
 
-    -   Presque aucun tir à mi-distance (5 % des tirs) et attaque rarement le panier (10 %).
+  - Presque aucun tir à mi-distance (5 % des tirs) et attaque rarement le panier (10 %).
 
--   **Type de tirs**:
+- **Type de tirs**:
 
-    -   Il marque 7,5 tirs à trois points par match (92 % assistés).
+  - Il marque 7,5 tirs à trois points par match (92 % assistés).
 
-    -   Il dribble très peu, avec seulement 1,3 drive par match (contre plus de 10 pour des arrières comme SGA ou Fox).
+  - Il dribble très peu, avec seulement 1,3 drive par match (contre plus de 10 pour des arrières comme SGA ou Fox).
 
--   **Why He’s an Outlier**:
+- **Why He’s an Outlier**:
 
-    -   Un pur espaceur de terrain à une époque où même des tireurs comme Curry mélangent drives et tirs à mi-distance.
+  - Un pur espaceur de terrain à une époque où même des tireurs comme Curry mélangent drives et tirs à mi-distance.
 
-    -   Il ressemble à un « spécialiste du tir à 3 points » des années 2000 (par exemple, Kyle Korver), mais avec un volume plus élevé.
+  - Il ressemble à un « spécialiste du tir à 3 points » des années 2000 (par exemple, Kyle Korver), mais avec un volume plus élevé.
 
 ### **2. Mitchell Robinson (New York Knicks)**
 
 #### **Outlier Traits:**
 
--   **Zero Jump Shots**:
+- **Zero Jump Shots**:
 
-    -   **100% of his FGA come within 5 feet of the rim** (no recorded threes/mid-range in his career).
+  - **100% of his FGA come within 5 feet of the rim** (no recorded threes/mid-range in his career).
 
-    -   Literally **has never made a shot outside the paint** in 6 NBA seasons.
+  - Literally **has never made a shot outside the paint** in 6 NBA seasons.
 
--   **Role**:
+- **Role**:
 
-    -   Elite offensive rebounder (4.5 ORB/game) but **zero self-creation** (99% of shots assisted).
+  - Elite offensive rebounder (4.5 ORB/game) but **zero self-creation** (99% of shots assisted).
 
 #### **Why He’s an Outlier**:
 
--   The ultimate **"rim-only" big**—even Rudy Gobert occasionally takes hooks from 8 feet.
+- The ultimate **"rim-only" big**—even Rudy Gobert occasionally takes hooks from 8 feet.
 
--   A throwback to 1990s centers (e.g., Ben Wallace) with no modern skills.
+- A throwback to 1990s centers (e.g., Ben Wallace) with no modern skills.
 
 ------------------------------------------------------------------------
 
@@ -232,21 +232,21 @@ ggarrange(ptypical1, ptypical2, ptypical3,
 
 #### **Outlier Traits:**
 
--   **Hyper-Efficient Corner 3s**:
+- **Hyper-Efficient Corner 3s**:
 
-    -   **73% of his FGA are threes**, and **45% of those are corner 3s** (league avg: 20%).
+  - **73% of his FGA are threes**, and **45% of those are corner 3s** (league avg: 20%).
 
-    -   Shoots **49% on corner 3s** (best in NBA among high-volume shooters).
+  - Shoots **49% on corner 3s** (best in NBA among high-volume shooters).
 
--   **Avoids Everything Else**:
+- **Avoids Everything Else**:
 
-    -   Just **8% of shots at the rim** and **12% mid-range**.
+  - Just **8% of shots at the rim** and **12% mid-range**.
 
 #### **Why He’s an Outlier**:
 
--   A **"corner-3 vampire"**—lurks in the corners and refuses to deviate.
+- A **"corner-3 vampire"**—lurks in the corners and refuses to deviate.
 
--   More extreme than even Duncan Robinson or Joe Harris.
+- More extreme than even Duncan Robinson or Joe Harris.
 
 ```{r}
 # Les deepest

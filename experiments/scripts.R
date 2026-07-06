@@ -71,189 +71,124 @@ D
 heatmap(D)
 
 
-# ---------------------------------------------------
-# 3. VISUALISATION ISO-MDS
-# ---------------------------------------------------
-# Un petit ajustement au cas où de légères approximations numériques de spatstat 
-# donneraient des distances négatives infimes (ex: -1e-16), on force le plancher à 0.
-D[D < 0] <- 0
+# ===========================================================================================================================
+library(cluster)
 
-mds_iso <- isoMDS(D, k = 2)
+# 1. Définir la grille des valeurs de 'probs' à tester
+v_probs <- seq(0.1, 0.9, by = 0.05) 
+scores_silhouette <- numeric(length(v_probs))
 
-plot(mds_iso$points,
-     asp = 1,
-     pch = 19,
-     xlab = "Dim 1",
-     ylab = "Dim 2",
-     main = "NBA Players - Spatial KDE Distance Matrix")
+# Nombre de joueurs
+n <- length(data_by_player)
 
-text(mds_iso$points,
-     labels = rownames(D),
-     pos = 3,
-     cex = 0.8)
+# Initialisation d'une barre de progression pour suivre l'avancement
+pb <- txtProgressBar(min = 0, max = length(v_probs), style = 3)
 
-#==================================================================
+# 2. Boucle sur les différentes valeurs de probs
+for (p_idx in seq_along(v_probs)) {
+  p <- v_probs[p_idx]
+  
+  # --- Étape A : Filtrage Tukey avec le probs actuel ---
+  data_typic_made_all_players <- lapply(data_made_by_player, function(joueur_data) {
+    prof_matchs <- depths.Tukey(
+      joueur_data, joueur_data,
+      nDirs = 250, subs = FALSE, exactEst = FALSE,
+      parConst1 = -2, parConst2 = 5
+    )
+    seuil_matchs <- quantile(prof_matchs, probs = p, na.rm = TRUE)
+    joueur_filtre <- joueur_data[prof_matchs >= seuil_matchs]
+    return(joueur_filtre)
+  })
+  
+  # --- Étape B : Reconstruction des dataframes de tirs ---
+  shots_made_by_player <- lapply(data_typic_made_all_players, function(joueur_list) {
+    joueur_df <- do.call(rbind, lapply(names(joueur_list), function(id) {
+      match <- joueur_list[[id]]
+      if (is.null(match$coords) || nrow(match$coords) == 0) return(NULL)
+      data.frame(
+        idGame    = id,
+        dateGame  = match$date,
+        LOC_X     = match$coords[, 1],
+        LOC_Y     = match$coords[, 2],
+        SHOT_MADE = TRUE
+      )
+    }))
+    return(joueur_df)
+  })
+  
+  # --- Étape C : Calcul de la matrice de distance D ---
+  D <- matrix(0, n, n)
+  for(i in 1:n){
+    for(j in i:n){
+      dij <- evaluer_distance(
+        shots_made_by_player[[i]],
+        shots_made_by_player[[j]]
+      )
+      D[i, j] <- dij
+      D[j, i] <- dij
+    }
+  }
+  
+  # --- Étape D : CAH et calcul du score de Silhouette ---
+  # Ajout d'un tryCatch au cas où un cas extrême génère des erreurs de clustering
+  tryCatch({
+    cah_core <- hclust(as.dist(D), method = "ward.D2")
+    cluster_assignments <- cutree(cah_core, k = 2) # Tu as mis k=2 (le commentaire disait 3)
+    
+    sil <- silhouette(cluster_assignments, as.dist(D))
+    scores_silhouette[p_idx] <- mean(sil[, 3])
+  }, error = function(e) {
+    scores_silhouette[p_idx] <- NA # En cas de problème (ex: plus assez de tirs)
+  })
+  
+  setTxtProgressBar(pb, p_idx)
+}
+close(pb)
 
-# ==============================================================================
-# SCÉNARIO 1 : Étude de puissance — Perturbation d'intensité globale
-# ==============================================================================
+# 3. Création du graphique de la courbe
+plot(v_probs, scores_silhouette, type = "b", pch = 19, col = "blue",
+     xlab = "Seuil de quantile (probs)",
+     ylab = "Score de silhouette moyen",
+     main = "Évolution du Silhouette Score en fonction du filtrage Tukey",
+     panel.first = grid())
 
-library(spatstat)
+# Optionnel : Ajouter une ligne rouge pour repérer le maximum
+opt_p <- v_probs[which.max(scores_silhouette)]
+abline(v = opt_p, col = "red", lty = 2)
+text(opt_p, min(scores_silhouette, na.rm=TRUE), labels = paste("Optimum =", opt_p), pos = 4, col = "red")
 
-# --- paramètres globaux -------------------------------------------------------
+
+
+
+
+set.seed(0)
 W_GLOBAL          <- owin(c(0, 1), c(0, 1))
 LAMBDA_0_GLOBAL   <- 20
 N_MATCHES_GLOBAL  <- 15
 
-# ==============================================================================
-# FONCTIONS DE SIMULATION
-# ==============================================================================
+delta = 1
 
-#' Simule un échantillon de "matchs" sous H0 (Processus de Poisson Homogène)
-simulate_sample_H0 <- function(n_matches = N_MATCHES_GLOBAL,
-                               lambda0   = LAMBDA_0_GLOBAL,
-                               W         = W_GLOBAL) {
-  replicate(n = n_matches, expr = {
-    sim_ppp <- rpoispp(lambda = lambda0, win = W)
-    list(coords = cbind(sim_ppp$x, sim_ppp$y))
-  }, simplify = FALSE)
-}
+f_gradient <- function(x, y) 2 * 20 * (delta * x + (1 - delta) * 0.5)
 
-#' Simule un échantillon sous H1, scénario 1 (intensité perturbée)
-simulate_sample_H1_sc1 <- function(delta,
-                                   n_matches = N_MATCHES_GLOBAL,
-                                   lambda0   = LAMBDA_0_GLOBAL,
-                                   W         = W_GLOBAL) {
-  lambda_alternative <- lambda0 * (1 + delta)
-  replicate(n = n_matches, expr = {
-    sim_ppp <- rpoispp(lambda = lambda_alternative, win = W)
-    list(coords = cbind(sim_ppp$x, sim_ppp$y))
-  }, simplify = FALSE)
-}
-
-# ==============================================================================
-# UNE ITÉRATION DU TEST
-# ==============================================================================
-
-#' Une itération Monte-Carlo : génère H0 et H1, applique le test, retourne le rejet
-#'
-#' @param test_fun Fonction de test prenant (pl_H0, pl_H1) et retournant
-#'                 une p-valeur (ex: methode_1, methode_2)
-mc_iteration_sc1 <- function(delta,
-                             test_fun,
-                             alpha     = 0.05,
-                             n_matches = N_MATCHES_GLOBAL,
-                             lambda0   = LAMBDA_0_GLOBAL,
-                             W         = W_GLOBAL) {
-  
-  pl_H0 <- simulate_sample_H0(n_matches = n_matches, lambda0 = lambda0, W = W)
-  pl_H1 <- simulate_sample_H1_sc1(delta = delta, n_matches = n_matches,
-                                  lambda0 = lambda0, W = W)
-  
-  p_value <- test_fun(pl_H0, pl_H1)
-  p_value <= alpha
-}
-
-# ==============================================================================
-# CALCUL DE LA PUISSANCE POUR UN DELTA DONNÉ
-# ==============================================================================
-
-#' Estime la puissance du test pour un delta fixé, par répétition Monte-Carlo
-power_sc1 <- function(delta,
-                      test_fun,
-                      B         = 500,
-                      alpha     = 0.05,
-                      n_matches = N_MATCHES_GLOBAL,
-                      lambda0   = LAMBDA_0_GLOBAL,
-                      W         = W_GLOBAL) {
-  
-  reject <- logical(B)
-  for (b in seq_len(B)) {
-    reject[b] <- mc_iteration_sc1(
-      delta     = delta,
-      test_fun  = test_fun,
-      alpha     = alpha,
-      n_matches = n_matches,
-      lambda0   = lambda0,
-      W         = W)
-  }
-  mean(reject)
-}
-
-# ==============================================================================
-# COURBE DE PUISSANCE
-# ==============================================================================
-
-delta_grid <- seq(0, 2, by = 0.1)
-
-power <- sapply(delta_grid, function(d) {
-  cat("delta =", d, "\n")
-  power_sc1(delta = d, test_fun = wil_test, B = 200)
-})
-
-# ==============================================================================
-# VISUALISATION
-# ==============================================================================
-
-plot(delta_grid,
-     power,
-     type = "b",
-     pch  = 19,
-     col  = "darkviolet",
-     xlab = expression(delta),
-     ylab = "Puissance estimée",
-     main = "Courbe de puissance — Scénario 1 (intensité globale)",
-     ylim = c(0, 1))
-abline(h = 0.05, lty = 2, col = "red")
-grid()
-
-#---------------------------------------------------------------------------------------
-
-
-delta_grid <- seq(1.2, 1.23, by = 0.01) 
-# On applique la simulation de puissance pour chaque valeur de delta
-puissance_par_delta <- sapply(delta_grid, function(d) {
-  B <- 10 
-  rejets <- replicate(B, {
-    mc_iteration_sc1(
-      delta     = d,
-      test_fun  = test_fun,
-      alpha     = alpha,
-      n_matches = n_matches,
-      lambda0   = lambda0,
-      W         = W
-    )
-  })
-  mean(rejets)
-})
-print(puissance_par_delta)
-
-d = 1
-test_fun = wil_test
-
-test_fun = methode_1
-
-test_fun = methode_2
-mc_iteration_sc1(
-  delta     = d,
-  test_fun  = test_fun,
-  alpha     = alpha,
-  n_matches = N_MATCHES_GLOBAL,
-  lambda0   = LAMBDA_0_GLOBAL,
-  W         = W
-)
+replicate(n = 15, expr = {
+  sim_ppp <- rpoispp(lambda = f_gradient, win =  owin(c(0, 1), c(0, 1)))
+  list(coords = cbind(sim_ppp$x, sim_ppp$y))
+}, simplify = FALSE)
 
 
 
+plot(sim_ppp[[1]])
+
+
+str(sim_pp)
 
 
 
+a <-rpoispp(lambda = f_gradient, win =  owin(c(0, 1), c(0, 1)))
+list(coords = cbind(sim_ppp$x, sim_ppp$y))
 
-
-
-
-
-
+str(a)
+plot(a)
 
 
 

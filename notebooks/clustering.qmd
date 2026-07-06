@@ -14,6 +14,7 @@ source("../R/nba-functions.R") #add echo = T to see more details source("./geome
 
 ```{r}
 library(ggplot2)
+library(ggrepel)
 library(gridExtra)
 library(ggpubr) # sudo apt-get install liblapack-dev libblas-dev gfortran
 #library(tidyverse)
@@ -24,6 +25,7 @@ library(extrafont)
 library(cowplot)
 library(transport)
 library(curveDepth)
+library(spatstat)
 ```
 
 ```{r}
@@ -105,7 +107,7 @@ data_typic_made_all_players <- lapply(data_made_by_player, function(joueur_data)
     parConst1 = -2,
     parConst2 = 5
   )
-  seuil_matchs <- quantile(prof_matchs, probs = 0.5, na.rm = TRUE)
+  seuil_matchs <- quantile(prof_matchs, probs = 0.45, na.rm = TRUE)
   joueur_filtre <- joueur_data[prof_matchs >= seuil_matchs]
   return(joueur_filtre)
 })
@@ -117,6 +119,8 @@ names(data_typic_made_all_players) <- names(data_made_by_player)
 shots_made_by_player <- lapply(data_typic_made_all_players, function(joueur_list) {
   joueur_df <- do.call(rbind, lapply(names(joueur_list), function(id) {
     match <- joueur_list[[id]]
+    if (is.null(match$coords) || nrow(match$coords) == 0)
+    return(NULL)
     data.frame(
       idGame    = id,
       dateGame  = match$date,
@@ -151,7 +155,7 @@ p2 <- plot_season2(shots_made_by_player[[10]])
 
 ## Distances entre processus
 
-## distance entre kde
+## distance entre kde normalisée
 
 ```{r}
 library(spatstat)
@@ -164,11 +168,63 @@ evaluer_distance <- function(data_joueur_A, data_joueur_B, sigma = 3, fenetre = 
   kde_A <- density(ppp_A, sigma = sigma, at = "pixels")
   kde_B <- density(ppp_B, sigma = sigma, at = "pixels", dimyx = dim(kde_A)) 
   
+  kde_A_norm <- kde_A / integral(kde_A)
+  kde_B_norm <- kde_B / integral(kde_B)
+  distance_KDE <- integral((kde_A_norm - kde_B_norm)^2)
+  
+  return(distance_KDE)
+}
+
+pl_1 <- shots_made_by_player[[1]]
+pl_2 <- shots_made_by_player[[2]]
+evaluer_distance(pl_2, pl_1)
+```
+
+## distance entre kde
+
+```{r}
+library(spatstat)
+
+evaluer_distance <- function(data_joueur_A, data_joueur_B, sigma = 3, fenetre = owin(c(-25, 25), c(-47.1, 0)) ) {
+  
+  ppp_A <- ppp(x = data_joueur_A$LOC_X, y = data_joueur_A$LOC_Y, window = fenetre)
+  ppp_B <- ppp(x = data_joueur_B$LOC_X, y = data_joueur_B$LOC_Y, window = fenetre)
+  
+  kde_A <- density(ppp_A, sigma = sigma, at = "pixels")
+  kde_B <- density(ppp_B, sigma = sigma, at = "pixels", dimyx = dim(kde_A)) 
+
   distance_KDE <- integral((kde_A - kde_B)^2)
   
   return(distance_KDE)
 }
 
+pl_1 <- shots_made_by_player[[1]]
+pl_2 <- shots_made_by_player[[2]]
+evaluer_distance(pl_2, pl_1)
+```
+
+## distance wasserstein
+
+```{r}
+library(spatstat)
+library(transport)
+
+evaluer_distance <- function(data_joueur_A, data_joueur_B, fenetre = owin(c(-25, 25), c(-47.1, 0))) {
+  
+  # 1. On garde spatstat seulement pour vérifier/nettoyer les points dans la fenêtre
+  ppp_A <- ppp(x = data_joueur_A$LOC_X, y = data_joueur_A$LOC_Y, window = fenetre, check = FALSE)
+  ppp_B <- ppp(x = data_joueur_B$LOC_X, y = data_joueur_B$LOC_Y, window = fenetre, check = FALSE)
+  
+  # 2. Conversion en objets wpp (le format attendu par transport::wasserstein)
+  wpp_A <- wpp(cbind(ppp_A$x, ppp_A$y), mass = rep(1 / npoints(ppp_A), npoints(ppp_A)))
+  wpp_B <- wpp(cbind(ppp_B$x, ppp_B$y), mass = rep(1 / npoints(ppp_B), npoints(ppp_B)))
+  
+  
+  # 3. Calcul du transport optimal (Wasserstein-1)
+  distance_W <- wasserstein(wpp_A, wpp_B, p = 1)
+  
+  return(distance_W)
+}
 pl_1 <- shots_made_by_player[[1]]
 pl_2 <- shots_made_by_player[[2]]
 evaluer_distance(pl_2, pl_1)
@@ -303,30 +359,31 @@ analyse_joueurs <- lapply(names(data_typic_made_all_players), function(nom_joueu
   # --- Retour de l'objet structuré ---
   return(list(
     player_name   = nom_joueur,
-    kde_mean      = kde_moyen,
-    #deepest_match = list(id = id_deepest, kde = kde_deepest, depth_value = max(profondeurs)),
-    all_kdes      = list_kde
+    kde_mean      = kde_moyen
   ))
 })
 
 names(analyse_joueurs) <- names(data_typic_made_all_players)
-```
-
-```{r}
+#=================================================================================
 noms_joueurs <- names(analyse_joueurs)
-vecteurs_densite_moyenne <- do.call(rbind, lapply(noms_joueurs, function(nom) {
-  kde_obj <- analyse_joueurs[[nom]]$kde_mean
-  as.vector(kde_obj$v) 
-}))
+n <- length(noms_joueurs)
 
-rownames(vecteurs_densite_moyenne) <- noms_joueurs
+D <- matrix(0, nrow = n, ncol = n, dimnames = list(noms_joueurs, noms_joueurs))
 
-matrice_distance_moyenne <- dist(vecteurs_densite_moyenne, method = "euclidean")
-matrice_dist_complete_moyenne <- as.matrix(matrice_distance_moyenne)
+for (i in 1:(n - 1)) {
+  for (j in (i + 1):n) {
+    
+    kde_i <- analyse_joueurs[[noms_joueurs[i]]]$kde_mean
+    kde_j <- analyse_joueurs[[noms_joueurs[j]]]$kde_mean
+    
+    dist_ij <- integral((kde_i - kde_j)^2)
+    
+    D[i, j] <- dist_ij
+    D[j, i] <- dist_ij
+  }
+}
 
-# Renommer en D pour tes scripts de clustering
-D <- matrice_dist_complete_moyenne
-heatmap(matrice_dist_complete_moyenne)
+heatmap(D)
 ```
 
 #### Intensité de la plus profonde
@@ -360,30 +417,28 @@ estimate_single_deepest_density <- function(data_joueurs, window = owin(c(-25, 2
   names(resultats) <- names(data_joueurs)
   return(resultats)
 }
-```
 
-```{r}
-densites_match_type <- estimate_single_deepest_density(data_joueurs = data_made_by_player, window = fenetre_terrain,
-  sigma = 2
-)
-```
+#==============================================================
+noms_joueurs <- names(analyse_joueurs)
+n <- length(noms_joueurs) 
+kde_type <- estimate_single_deepest_density(data_joueurs = data_made_by_player, window = fenetre_terrain,sigma = 2)
 
-```{r}
-noms_joueurs <- names(densites_match_type)
-vecteurs_densite <- do.call(rbind, lapply(noms_joueurs, function(nom) {
-  kde_obj <- densites_match_type[[nom]]$kde_typical
-  as.vector(kde_obj$v) # Transforme la matrice 128x128 en un vecteur de 16384 valeurs
-}))
+D <- matrix(0, nrow = n, ncol = n, dimnames = list(noms_joueurs, noms_joueurs))
 
-rownames(vecteurs_densite) <- noms_joueurs
+for (i in 1:(n - 1)) {
+  for (j in (i + 1):n) {
+    
+    kde_i <- kde_type[[noms_joueurs[i]]]$kde_typical
+    kde_j <- kde_type[[noms_joueurs[j]]]$kde_typical
+    
+    dist_ij <- integral((kde_i - kde_j)^2)
+    
+    D[i, j] <- dist_ij
+    D[j, i] <- dist_ij
+  }
+}
 
-# ==============================================================================
-# 2. CALCUL DE LA MATRICE DE DISTANCE L2 (EUCLIDIENNE)
-# ==============================================================================
-matrice_distance <- dist(vecteurs_densite, method = "euclidean")
-matrice_dist_complete <- as.matrix(matrice_distance)
-D <- matrice_dist_complete
-heatmap(matrice_dist_complete)
+heatmap(D)
 ```
 
 ```{r}
@@ -397,71 +452,11 @@ mon_theme<- theme(
 ```
 
 ```{r}
-#UMAP
-set.seed(42)
-# install.packages("umap")
-library(umap)
 library(ggplot2)
 library(ggrepel)
 
-# 1. Configuration de l'UMAP pour une matrice de distance
-configuration_umap <- umap.defaults
-configuration_umap$input <- "dist"
-configuration_umap$n_neighbors <- min(5, nrow(D) - 1) # À ajuster selon ton nombre de joueurs
-
-# 2. Calcul de la réduction de dimension
-res_umap <- umap(D, config = configuration_umap)
-
-# 3. Création du Dataframe pour le graphique
-umap_df <- data.frame(
-  Dim1 = res_umap$layout[, 1],
-  Dim2 = res_umap$layout[, 2],
-  Joueur = rownames(D)
-)
-
-# 4. Affichage moderne avec ggplot2
-ggplot(umap_df, aes(x = Dim1, y = Dim2, label = Joueur)) +
-  geom_point(color = "darkviolet", size = 3, alpha = 0.8) +
-  geom_text_repel(size = 2.5, max.overlaps = 15) + #coord_fixed() +
-  labs(
-    title = "Cartographie UMAP des Joueurs NBA",
-    x = "UMAP Dimension 1",
-    y = "UMAP Dimension 2"
-  ) + mon_theme
-```
-
-```{r}
-#ISOMAP
-#install.packages("vegan")
-library(vegan)
-library(ggplot2)
-library(ggrepel)
-
-res_isomap <- isomap(D, ndim = 2, k = 2)
-
-# 2. Extraction des coordonnées pour ggplot
-isomap_df <- data.frame(
-  Dim1 = res_isomap$points[, 1],
-  Dim2 = res_isomap$points[, 2],
-  Joueur = rownames(D)
-)
-
-# 3. Affichage avec ton thème personnalisé (fond blanc, pointillés fins)
-ggplot(isomap_df, aes(x = Dim1, y = Dim2, label = Joueur)) +
-  geom_point(color = "darkviolet", size = 1.5, alpha = 0.8) + #coord_fixed(ratio = 1) +
-  geom_text_repel(size = 3.5, max.overlaps = 15) +
-  labs(
-    title = "Cartographie Isomap des Joueurs NBA",
-    x = "Isomap Dimension 1",
-    y = "Isomap Dimension 2"
-  ) +
-  mon_theme
-```
-
-```{r}
-library(ggplot2)
-library(ggrepel)
-
+rownames(dists) <- names(data_by_player)
+D <- dists
 mds_classique <- cmdscale(D, k = 2, eig = TRUE)
 set.seed(42)
 # Extraction des coordonnées 2D
@@ -475,7 +470,7 @@ mds_df <- data.frame(
 ggplot(mds_df, aes(x = Dim1, y = Dim2, label = Joueur)) +
   geom_point(color = "darkviolet", size = 2, alpha = 0.8) +
   geom_text_repel(size = 2.5, max.overlaps = 15) +
-  coord_fixed(ratio = 1) + # CRUCIAL pour le MDS : conserve l'échelle géométrique 1:1
+  #coord_fixed(ratio = 1) + # CRUCIAL pour le MDS : conserve l'échelle géométrique 1:1
   labs(
     title = "Cartographie MDS Classique ", x = "Axe Principal 1",    y = "Axe Principal 2"
   ) + mon_theme
@@ -487,12 +482,13 @@ cah_core <- hclust(as.dist(D), method = "ward.D2")
 plot(cah_core, main = "Dendrogramme des joueurs", xlab = "Joueurs", sub = "")
 
 # Découpage en 3 clusters
-cluster_assignments <- cutree(cah_core, k = 3)
+cluster_assignments <- cutree(cah_core, k = 2)
 
 ```
 
 ```{r}
 set.seed(42)
+cluster_assignments <- partition_finale
 proj_mds <- cmdscale(D, k = 2)
 plot_df <- data.frame(
   Dim1    = proj_mds[, 1],
@@ -504,7 +500,7 @@ plot_df <- data.frame(
 # Graphique final des profils types du joueur
 ggplot(plot_df, aes(x = Dim1, y = Dim2, color = Cluster, label = Match)) +
   geom_point(size = 3, alpha = 0.8) +
-  geom_text_repel(size = 3, max.overlaps = 15, show.legend = FALSE) + coord_fixed(ratio = 1) +
+  geom_text_repel(size = 3, max.overlaps = 15, show.legend = FALSE) + #coord_fixed(ratio = 1) +
   labs(
     title = "Typologie des joueurs",
     x = "Dimension 1",
@@ -514,10 +510,294 @@ ggplot(plot_df, aes(x = Dim1, y = Dim2, color = Cluster, label = Match)) +
 ```
 
 ```{r}
+
+# 1. Définir la grille des valeurs de 'probs' à tester
+v_probs <- seq(0, 0.9, by = 0.05) 
+scores_silhouette <- numeric(length(v_probs))
+
+# Nombre de joueurs
+n <- length(data_by_player)
+
+# 2. Boucle sur les différentes valeurs de probs
+for (p_idx in seq_along(v_probs)) {
+  p <- v_probs[p_idx]
+  
+  # --- Étape A : Filtrage Tukey avec le probs actuel ---
+  data_typic_made_all_players <- lapply(data_made_by_player, function(joueur_data) {
+    prof_matchs <- depths.Tukey(
+      joueur_data, joueur_data,
+      nDirs = 250, subs = FALSE, exactEst = FALSE,
+      parConst1 = -2, parConst2 = 5
+    )
+    seuil_matchs <- quantile(prof_matchs, probs = p, na.rm = TRUE)
+    joueur_filtre <- joueur_data[prof_matchs >= seuil_matchs]
+    return(joueur_filtre)
+  })
+  
+  # --- Étape B : Reconstruction des dataframes de tirs --
+  noms_joueurs <- names(analyse_joueurs)
+  n <- length(noms_joueurs) 
+  kde_type <- estimate_single_deepest_density(data_joueurs = data_typic_made_all_players , window = fenetre_terrain,sigma = 2)
+  
+  D <- matrix(0, nrow = n, ncol = n, dimnames = list(noms_joueurs, noms_joueurs))
+  
+  for (i in 1:(n - 1)) {
+    for (j in (i + 1):n) {
+      
+      kde_i <- kde_type[[noms_joueurs[i]]]$kde_typical
+      kde_j <- kde_type[[noms_joueurs[j]]]$kde_typical
+      
+      dist_ij <- integral((kde_i - kde_j)^2)
+      
+      D[i, j] <- dist_ij
+      D[j, i] <- dist_ij
+    }
+  }
+  
+  
+  cah_core <- hclust(as.dist(D), method = "ward.D2")
+  cluster_assignments <- cutree(cah_core, k = 2) # Tu as mis k=2 (le commentaire disait 3)
+  
+  sil <- silhouette(cluster_assignments, as.dist(D))
+  scores_silhouette[p_idx] <- mean(sil[, 3])
+}
+```
+
+```{r}
+# 3. Création du graphique de la courbe
+plot(v_probs, scores_silhouette, type = "b", pch = 19, col = "blue",
+     xlab = "Seuil de quantile (probs)",
+     ylab = "Score de silhouette moyen",
+     main = "Évolution du Silhouette Score en fonction du filtrage Tukey\n(KDE plus profond)",
+     panel.first = grid())
+
+# Optionnel : Ajouter une ligne rouge pour repérer le maximum
+opt_p <- v_probs[which.max(scores_silhouette)]
+abline(v = opt_p, col = "red", lty = 2)
+text(opt_p, min(scores_silhouette, na.rm=TRUE), labels = paste("Optimum =", opt_p), pos = 4, col = "red",cex = 0.7)
+```
+
+```{r}
 library(cluster)
-sil <- silhouette(cluster_assignments,
-                  as.dist(D))
-mean(sil[,3])
+
+# 1. Définir la grille des valeurs de 'probs' à tester
+v_probs <- seq(0, 0.9, by = 0.05) 
+scores_silhouette <- numeric(length(v_probs))
+
+# Nombre de joueurs
+n <- length(data_by_player)
+
+# 2. Boucle sur les différentes valeurs de probs
+for (p_idx in seq_along(v_probs)) {
+  p <- v_probs[p_idx]
+  
+  # --- Étape A : Filtrage Tukey avec le probs actuel ---
+  data_typic_made_all_players <- lapply(data_made_by_player, function(joueur_data) {
+    prof_matchs <- depths.Tukey(
+      joueur_data, joueur_data,
+      nDirs = 250, subs = FALSE, exactEst = FALSE,
+      parConst1 = -2, parConst2 = 5
+    )
+    seuil_matchs <- quantile(prof_matchs, probs = p, na.rm = TRUE)
+    joueur_filtre <- joueur_data[prof_matchs >= seuil_matchs]
+    return(joueur_filtre)
+  })
+  
+  # --- Étape B : Reconstruction des dataframes de tirs ---
+  analyse_joueurs <- lapply(names(data_typic_made_all_players), function(nom_joueur) {
+    
+    joueur_list <- data_typic_made_all_players[[nom_joueur]]
+    match_ids <- names(joueur_list)
+    list_kde <- lapply(match_ids, function(id) {
+      match <- joueur_list[[id]]
+      coords <- match$coords
+      
+      ppp_match <- ppp(x = coords[, 1], y = coords[, 2], window = fenetre_terrain)
+      kde <- density(ppp_match, sigma = sigma_kde, at = "pixels", dimyx = c(128, 128))
+      return(kde)
+    })
+    names(list_kde) <- match_ids
+    
+    matrices_v <- lapply(list_kde, function(img) img$v)
+    matrice_moyenne <- Introduce <- Reduce("+", matrices_v) / length(matrices_v)
+    
+    kde_moyen <- im(matrice_moyenne, xcol = list_kde[[1]]$xcol, yrow = list_kde[[1]]$yrow)
+    
+    
+    # --- Retour de l'objet structuré ---
+    return(list(
+      player_name   = nom_joueur,
+      kde_mean      = kde_moyen
+    ))
+  })
+  
+  names(analyse_joueurs) <- names(data_typic_made_all_players)
+  
+  
+  # --- Étape C : Calcul de la matrice de distance D ---
+  noms_joueurs <- names(analyse_joueurs)
+  n <- length(noms_joueurs)
+  
+  D <- matrix(0, nrow = n, ncol = n, dimnames = list(noms_joueurs, noms_joueurs))
+  
+  for (i in 1:(n - 1)) {
+    for (j in (i + 1):n) {
+      
+      kde_i <- analyse_joueurs[[noms_joueurs[i]]]$kde_mean
+      kde_j <- analyse_joueurs[[noms_joueurs[j]]]$kde_mean
+      
+      dist_ij <- integral((kde_i - kde_j)^2)
+      
+      D[i, j] <- dist_ij
+      D[j, i] <- dist_ij
+    }
+  }
+  cah_core <- hclust(as.dist(D), method = "ward.D2")
+  cluster_assignments <- cutree(cah_core, k = 2) 
+  
+  sil <- silhouette(cluster_assignments, as.dist(D))
+  scores_silhouette[p_idx] <- mean(sil[, 3])
+}
+```
+
+```{r}
+# 3. Création du graphique de la courbe
+plot(v_probs, scores_silhouette, type = "b", pch = 19, col = "blue",
+     xlab = "Seuil de quantile (probs)",
+     ylab = "Score de silhouette moyen",
+     main = "Évolution du Silhouette Score en fonction du filtrage Tukey\n(KDE moyen)",
+     panel.first = grid())
+
+# Optionnel : Ajouter une ligne rouge pour repérer le maximum
+opt_p <- v_probs[which.max(scores_silhouette)]
+abline(v = opt_p, col = "red", lty = 2)
+text(opt_p, min(scores_silhouette, na.rm=TRUE), labels = paste("Optimum =", opt_p), pos = 4, col = "red",cex = 0.7)
+```
+
+```{r}
+library(cluster)
+
+# 1. Définir la grille des valeurs de 'probs' à tester
+v_probs <- seq(0, 0.9, by = 0.05) 
+scores_silhouette <- numeric(length(v_probs))
+
+# Nombre de joueurs
+n <- length(data_by_player)
+
+# 2. Boucle sur les différentes valeurs de probs
+for (p_idx in seq_along(v_probs)) {
+  p <- v_probs[p_idx]
+  
+  # --- Étape A : Filtrage Tukey avec le probs actuel ---
+  data_typic_made_all_players <- lapply(data_made_by_player, function(joueur_data) {
+    prof_matchs <- depths.Tukey(
+      joueur_data, joueur_data,
+      nDirs = 250, subs = FALSE, exactEst = FALSE,
+      parConst1 = -2, parConst2 = 5
+    )
+    seuil_matchs <- quantile(prof_matchs, probs = p, na.rm = TRUE)
+    joueur_filtre <- joueur_data[prof_matchs >= seuil_matchs]
+    return(joueur_filtre)
+  })
+  
+  # --- Étape B : Reconstruction des dataframes de tirs ---
+  shots_made_by_player <- lapply(data_typic_made_all_players, function(joueur_list) {
+    joueur_df <- do.call(rbind, lapply(names(joueur_list), function(id) {
+      match <- joueur_list[[id]]
+      if (is.null(match$coords) || nrow(match$coords) == 0) return(NULL)
+      data.frame(
+        idGame    = id,
+        dateGame  = match$date,
+        LOC_X     = match$coords[, 1],
+        LOC_Y     = match$coords[, 2],
+        SHOT_MADE = TRUE
+      )
+    }))
+    return(joueur_df)
+  })
+  
+  # --- Étape C : Calcul de la matrice de distance D ---
+  D <- matrix(0, n, n)
+  for(i in 1:n){
+    for(j in i:n){
+      dij <- evaluer_distance(
+        shots_made_by_player[[i]],
+        shots_made_by_player[[j]]
+      )
+      D[i, j] <- dij
+      D[j, i] <- dij
+    }
+  }
+  
+    cah_core <- hclust(as.dist(D), method = "ward.D2")
+    cluster_assignments <- cutree(cah_core, k = 2) # Tu as mis k=2 (le commentaire disait 3)
+    
+    sil <- silhouette(cluster_assignments, as.dist(D))
+    scores_silhouette[p_idx] <- mean(sil[, 3])
+  
+}
+```
+
+```{r}
+
+# 3. Création du graphique de la courbe
+plot(v_probs, scores_silhouette, type = "b", pch = 19, col = "blue",
+     xlab = "Seuil de quantile (probs)",
+     ylab = "Score de silhouette moyen",
+     main = "Évolution du Silhouette Score en fonction du filtrage Tukey\n(KDE)",
+     panel.first = grid())
+
+# Optionnel : Ajouter une ligne rouge pour repérer le maximum
+opt_p <- v_probs[which.max(scores_silhouette)]
+abline(v = opt_p, col = "red", lty = 2)
+text(opt_p, min(scores_silhouette, na.rm=TRUE), labels = paste("Optimum =", opt_p), pos = 4, col = "red",cex = 0.7)
+
+```
+
+```{r}
+# 3. Création du graphique de la courbe
+plot(v_probs, scores_silhouette, type = "b", pch = 19, col = "blue",
+     xlab = "Seuil de quantile (probs)",
+     ylab = "Score de silhouette moyen",
+     main = "Évolution du Silhouette Score en fonction du filtrage Tukey\n(Baddeley)",
+     panel.first = grid())
+
+# Optionnel : Ajouter une ligne rouge pour repérer le maximum
+opt_p <- v_probs[which.max(scores_silhouette)]
+abline(v = opt_p, col = "red", lty = 2)
+text(opt_p, min(scores_silhouette, na.rm=TRUE), labels = paste("Optimum =", opt_p), pos = 4, col = "red",cex = 0.7)
+```
+
+```{r}
+
+# 3. Création du graphique de la courbe
+plot(v_probs, scores_silhouette, type = "b", pch = 19, col = "blue",
+     xlab = "Seuil de quantile (probs)",
+     ylab = "Score de silhouette moyen",
+     main = "Évolution du Silhouette Score en fonction du filtrage Tukey\n( wasserstein)",
+     panel.first = grid())
+
+# Optionnel : Ajouter une ligne rouge pour repérer le maximum
+opt_p <- v_probs[which.max(scores_silhouette)]
+abline(v = opt_p, col = "red", lty = 2)
+text(opt_p, min(scores_silhouette, na.rm=TRUE), labels = paste("Optimum =", opt_p), pos = 4, col = "red",cex = 0.7)
+
+```
+
+```{r}
+
+# 3. Création du graphique de la courbe
+plot(v_probs, scores_silhouette, type = "b", pch = 19, col = "blue",
+     xlab = "Seuil de quantile (probs)",
+     ylab = "Score de silhouette moyen",
+     main = "Évolution du Silhouette Score en fonction du filtrage Tukey\n( KDE Normalisé)",
+     panel.first = grid())
+
+# Optionnel : Ajouter une ligne rouge pour repérer le maximum
+opt_p <- v_probs[which.max(scores_silhouette)]
+abline(v = opt_p, col = "red", lty = 2)
+text(opt_p, min(scores_silhouette, na.rm=TRUE), labels = paste("Optimum =", opt_p), pos = 4, col = "red",cex = 0.7)
+
 ```
 
 ## Matrice de distance entre match d'un joueur
@@ -725,7 +1005,7 @@ set.seed(42)
 
 
 partition <- partition_finale
-partition <- partition_f
+#partition <- partition_f
 
 D_matchs = dists
 
@@ -733,7 +1013,7 @@ proj_mds <- cmdscale(D_matchs, k = 2)
 plot_global_df<- data.frame(
   Dim1    = proj_mds[, 1],
   Dim2    = proj_mds[, 2],
-  Match = rownames(matchs_joueur),
+  Match = names(matchs_joueur),
   Cluster = as.factor(partition)
  
 )
@@ -876,7 +1156,7 @@ library(dplyr)
 results %>%
   group_by(Cluster) %>%
   arrange(desc(RelativeDepth), .by_group = TRUE) %>%
-  print(n = 30)
+  print(n = 60)
 ```
 
 ```{r}
@@ -896,8 +1176,8 @@ plot(sil,
 
 ```{r}
 
-p11 <- plot_match2(matchs_joueur, idMatch = "21801153")
-p12 <- plot_match2(matchs_joueur, idMatch = "21800089")
+p11 <- plot_match2(matchs_joueur, idMatch = "21800026")
+p12 <- plot_match2(matchs_joueur, idMatch = "21800929")
 (p11 + p12 )
 
 ```
@@ -941,6 +1221,7 @@ wrap_plots(plots_clusters, ncol =2)
 ```
 
 ```{r}
+curNdirs = 250
 # --- extraction des processus par cluster ------------------------------------
 cluster_1 <- matchs_joueur[names(partition)[partition == 1]]
 cluster_2 <- matchs_joueur[names(partition)[partition == 2]]
