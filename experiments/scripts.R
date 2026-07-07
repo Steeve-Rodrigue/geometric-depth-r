@@ -157,38 +157,213 @@ opt_p <- v_probs[which.max(scores_silhouette)]
 abline(v = opt_p, col = "red", lty = 2)
 text(opt_p, min(scores_silhouette, na.rm=TRUE), labels = paste("Optimum =", opt_p), pos = 4, col = "red")
 
+#===================================================================================================================================
 
 
 
-
+# --- paramètres globaux -------------------------------------------------------
 set.seed(0)
-W_GLOBAL          <- owin(c(0, 1), c(0, 1))
-LAMBDA_0_GLOBAL   <- 20
-N_MATCHES_GLOBAL  <- 15
+W <- W_GLOBAL <- owin(c(0, 1), c(0, 1))
+lambda0 <- LAMBDA_0_GLOBAL   <- 20
+n_matches <- N_MATCHES_GLOBAL  <- 15
+alpha <- 0.05
+B <- 150
 
-delta = 1
+delta <- 2
 
-f_gradient <- function(x, y) 2 * 20 * (delta * x + (1 - delta) * 0.5)
+# ==============================================================================
+# FONCTIONS DE SIMULATION
+# ==============================================================================
 
-replicate(n = 15, expr = {
-  sim_ppp <- rpoispp(lambda = f_gradient, win =  owin(c(0, 1), c(0, 1)))
-  list(coords = cbind(sim_ppp$x, sim_ppp$y))
-}, simplify = FALSE)
+#' Simule un échantillon de "matchs" sous H0 (Processus de Poisson Homogène)
+simulate_sample_H0 <- function(n_matches = N_MATCHES_GLOBAL,
+                               lambda0   = LAMBDA_0_GLOBAL,
+                               W         = W_GLOBAL) {
+  replicate(n = n_matches, expr = {
+    sim_ppp <- rpoispp(lambda = lambda0, win = W)
+    list(coords = cbind(sim_ppp$x, sim_ppp$y))
+  }, simplify = FALSE)
+}
+
+#' Simule un échantillon sous H1, scénario 1 (intensité perturbée)
+simulate_sample_H1_sc1 <- function(delta,
+                                   n_matches = N_MATCHES_GLOBAL,
+                                   lambda0   = LAMBDA_0_GLOBAL,
+                                   W         = W_GLOBAL) {
+  lambda_alternative <- lambda0 * (1 + delta)
+  replicate(n = n_matches, expr = {
+    sim_ppp <- rpoispp(lambda = lambda_alternative, win = W)
+    list(coords = cbind(sim_ppp$x, sim_ppp$y))
+  }, simplify = FALSE)
+}
+
+# ==============================================================================
+# UNE ITÉRATION DU TEST
+# ==============================================================================
+
+#' Une itération Monte-Carlo : génère H0 et H1, applique le test, retourne le rejet
+#'
+#' @param test_fun Fonction de test prenant (pl_H0, pl_H1) et retournant
+#'                 une p-valeur (ex: methode_1, methode_2)
+mc_iteration_sc1 <- function(delta,
+                             test_fun,
+                             alpha     = 0.05,
+                             n_matches = N_MATCHES_GLOBAL,
+                             lambda0   = LAMBDA_0_GLOBAL,
+                             W         = W_GLOBAL) {
+  
+  pl_H0 <- simulate_sample_H0(n_matches = n_matches, lambda0 = lambda0, W = W)
+  pl_H1 <- simulate_sample_H1_sc1(delta = delta, n_matches = n_matches,
+                                  lambda0 = lambda0, W = W)
+  
+  p_value <- test_fun(pl_H0, pl_H1)$p_value
+  p_value <= alpha
+}
+
+# ==============================================================================
+# CALCUL DE LA PUISSANCE POUR UN DELTA DONNÉ
+# ==============================================================================
+
+#' Estime la puissance du test pour un delta fixé, par répétition Monte-Carlo
+power_sc1 <- function(delta,
+                      test_fun,
+                      B         = 50,
+                      alpha     = 0.05,
+                      n_matches = N_MATCHES_GLOBAL,
+                      lambda0   = LAMBDA_0_GLOBAL,
+                      W         = W_GLOBAL) {
+  
+  reject <- logical(B)
+  for (b in seq_len(B)) {
+    reject[b] <- mc_iteration_sc1(
+      delta     = delta,
+      test_fun  = test_fun,
+      alpha     = alpha,
+      n_matches = n_matches,
+      lambda0   = lambda0,
+      W         = W)
+  }
+  mean(reject)
+}
+
+# ==============================================================================
+# COURBE DE PUISSANCE
+# ==============================================================================
+
+delta_grid <- seq(0, 1, by = 0.1)
+
+power_wil_test <- sapply(1:1, function(d) {
+  cat("delta =", d, "\n")
+  power_sc1(delta = d, test_fun = wil_test, B = 100)
+})
+
+power_pool_method <- sapply(delta_grid, function(d) {
+  cat("delta =", d, "\n")
+  power_sc1(delta = d, test_fun = pool_method, B = 100)
+})
+# 
+power_no_pool_method <- sapply(delta_grid, function(d) {
+  cat("delta =", d, "\n")
+  power_sc1(delta = d, test_fun = no_pool_method, B = 100)
+})
+# ==============================================================================
+# VISUALISATION MULTI-MÉTHODES
+# ==============================================================================
+
+# 1. Première méthode (ex: wil_test) - Initialise le graphique
+plot(delta_grid,
+     power_wil_test,          
+     type = "b",
+     pch  = 19,
+     cex  = 0.6,              # Réduit la taille des ronds
+     col  = "darkviolet",
+     xlab = expression(delta),
+     ylab = "Puissance estimée",
+     main = "Courbe de puissance — Scénario 1 (intensité globale)",
+     ylim = c(0, 1))
+
+# 2. Deuxième méthode - Superposition
+lines(delta_grid,
+      power_pool_method,         
+      type = "b",
+      pch  = 19,
+      cex  = 0.6,              # Même taille réduite
+      col  = "blue")
+
+# 3. Troisième méthode - Superposition
+lines(delta_grid,
+      power_no_pool_method,         
+      type = "b",
+      pch  = 19,
+      cex  = 0.6,              # Même taille réduite
+      col  = "green")
+
+# --- Éléments de légende et repères -------------------------------------------
+abline(h = 0.05, lty = 2, col = "red") # Ligne de niveau alpha = 5%
+grid()
+
+# Ajout d' une légende pour distinguer les 3 méthodes
+legend("topleft",
+       legend = c("Wilcoxon (Tukey)", "pool_method_ks", "no_pool_ks"),
+       col = c("darkviolet", "blue", "green"),
+       lty = 1,
+       pch = 19,
+       pt.cex = 0.6,
+       cex = 0.6,# Réduit aussi la taille des ronds dans la légende
+       bty = "n")              # Enlève le cadre de la légende
 
 
 
-plot(sim_ppp[[1]])
-
-
-str(sim_pp)
 
 
 
-a <-rpoispp(lambda = f_gradient, win =  owin(c(0, 1), c(0, 1)))
-list(coords = cbind(sim_ppp$x, sim_ppp$y))
+# --- paramètres globaux -------------------------------------------------------
+set.seed(0)
+W <- W_GLOBAL <- owin(c(0, 1), c(0, 1))
+lambda0 <- LAMBDA_0_GLOBAL   <- 20
+n_matches <- N_MATCHES_GLOBAL  <- 15
+alpha <- 0.05
+B <- 50
 
-str(a)
-plot(a)
+test_fun <- wil_test
+test_fun <- pool_method
+# test_fun <- no_pool_method
+
+
+delta <- 1
+
+pl_H0 <- simulate_sample_H0(n_matches = n_matches, lambda0 = lambda0, W = W)
+pl_H1 <- simulate_sample_H1_sc1(delta = delta, n_matches = n_matches,
+                                lambda0 = lambda0, W = W)
+
+
+p_value <- test_fun(pl_H0, pl_H1)$p_value
+p_value <= alpha
+
+
+
+
+
+reject <- logical(B)
+for (b in seq_len(B)) {
+  reject[b] <- mc_iteration_sc1(
+    delta     = delta,
+    test_fun  = test_fun,
+    alpha     = alpha,
+    n_matches = n_matches,
+    lambda0   = lambda0,
+    W         = W)
+}
+mean(reject)
+
+resultat <- test_fun(pl_1, pl_2)
+
+hist(resultat$T_perm, breaks = 20, col = "steelblue", border = "white",
+     main = "Distribution de T sous H0",
+     xlab = "T")
+abline(v = resultat$T_obs, col = "red", lwd = 2)
+legend("topright", legend = c("T_obs"), col = "red", lwd = 2)
+
 
 
 

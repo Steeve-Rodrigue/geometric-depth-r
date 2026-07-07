@@ -54,7 +54,7 @@ resp <- httr::GET(
     `Accept-Language`    = "en-US,en;q=0.9",
     `Connection`         = "keep-alive"
   ),
-  httr::timeout(30)
+  httr::timeout(0)
 )
 
 cat("HTTP status:", httr::status_code(resp), "\n")
@@ -929,16 +929,16 @@ wil_test <- function(pl_1, pl_2){
   
   
   # --- profondeurs de Z par rapport à elle-même --------------------------------
-  D_Z <- depths.Tukey(pl_1_ref, pl_1_ref, nDirs = 100,
+  D_Z <- depths.Tukey(pl_1_ref, pl_1_ref, nDirs = 250,
                       subs = FALSE, exactEst = FALSE,
                       parConst1 = -2, parConst2 = 5)
   
   # --- profondeurs de X et Y par rapport à Z -----------------------------------
-  D_X <- depths.Tukey(pl_1_test, pl_1_ref, nDirs = 100,
+  D_X <- depths.Tukey(pl_1_test, pl_1_ref, nDirs = 250,
                       subs = FALSE, exactEst = FALSE,
                       parConst1 = -2, parConst2 = 5)
   
-  D_Y <- depths.Tukey(pl_2_test, pl_1_ref, nDirs = 100,
+  D_Y <- depths.Tukey(pl_2_test, pl_1_ref, nDirs = 250,
                       subs = FALSE, exactEst = FALSE,
                       parConst1 = -2, parConst2 = 5)
   
@@ -955,12 +955,12 @@ wil_test <- function(pl_1, pl_2){
     alternative = "two.sided",
     exact = T
   )
-  return(res_wilcox$p.value)
+  return(list(p_value = res_wilcox$p.value))
   #print(res_wilcox)
 }
 #--------------------------------
-wil_test(pl_1 , pl_2)
-wil_test(pl_2 , pl_1)
+wil_test(pl_1 , pl_2)$p_value
+wil_test(pl_2 , pl_1)$p_value
 ```
 
 ## Méthode 2 & 3 : stats_Fonction_repartition et stats_Kolmogorow
@@ -988,7 +988,7 @@ pool_method<- function(pl_1, pl_2){
   Z <- c(X, Y)
   #set.seed(0)
   # --- profondeurs par rapport à l'échantillon combiné Z ----------------------
-  D_Z <- depths.Tukey(Z, Z, nDirs = 100,
+  D_Z <- depths.Tukey(Z, Z, nDirs = 250,
                       subs = FALSE, exactEst = FALSE,
                       parConst1 = -2, parConst2 = 5)
   
@@ -1008,7 +1008,7 @@ pool_method<- function(pl_1, pl_2){
   T_obs
   
   # --- permutations ------------------------------------------------------------
-  B <- 99
+  B <- 199
   #set.seed(0)
   T_perm <- sapply(seq_len(B), function(b) {
     perm  <- sample(N)
@@ -1027,20 +1027,30 @@ pool_method<- function(pl_1, pl_2){
   # --- p-valeur ----------------------------------------------------------------
   p_value <- (sum(T_perm >= T_obs) + 1) / (B + 1)
   #cat("T_obs =", T_obs, " p-value =", p_value, "\n")
-  return( p_value)
+  return( 
+    list(p_value = p_value, T_obs = T_obs, T_perm = T_perm)
+  )
 }
 
-pool_method( pl_1, pl_2)
+#==========================================================================
+resultat <- pool_method(pl_1, pl_2)
+
+hist(resultat$T_perm, breaks = 20, col = "steelblue", border = "white",
+     main = "Distribution de T sous H0",
+     xlab = "T")
+abline(v = resultat$T_obs, col = "red", lwd = 2)
+legend("topright", legend = c("T_obs"), col = "red", lwd = 2)
+
+
+resultat$p_value
 ```
 
 #### Sans Pool-sample
 
-\<- function(pl_1, pl_2){
-
 ```{r}
 
 pl_1 <- nba_data_depth_made(data_by_player[[10]])
-pl_2 <- nba_data_depth_made(data_by_player[[7]])
+pl_2 <- nba_data_depth_made(data_by_player[[6]])
 
 no_pool_method <- function(pl_1, pl_2){
   #set.seed(0)
@@ -1058,10 +1068,10 @@ no_pool_method <- function(pl_1, pl_2){
   Z <- c(X, Y)
   #set.seed(0)
   # --- profondeurs par rapport à sa propre population ----------------------
-  D_X <- depths.Tukey(X, X, nDirs = 100,
+  D_X <- depths.Tukey(X, X, nDirs = 250,
                       subs = FALSE, exactEst = FALSE,
                       parConst1 = -2, parConst2 = 5)
-  D_Y <- depths.Tukey(Y, Y, nDirs = 100,
+  D_Y <- depths.Tukey(Y, Y, nDirs = 250,
                       subs = FALSE, exactEst = FALSE,
                       parConst1 = -2, parConst2 = 5)
   
@@ -1076,7 +1086,7 @@ no_pool_method <- function(pl_1, pl_2){
   T_obs
   
   # --- permutations ------------------------------------------------------------
-  B <- 99
+  B <- 199
   #set.seed(0)
   T_perm <- sapply(seq_len(B), function(b) {
     perm  <- sample(N,n)
@@ -1105,10 +1115,23 @@ no_pool_method <- function(pl_1, pl_2){
   # --- p-valeur ----------------------------------------------------------------
   p_value <- (sum(T_perm >= T_obs) + 1) / (B + 1)
   # cat("T_obs =", T_obs, " p-value =", p_value, "\n")
-  return( p_value)
+  return( 
+    list(p_value = p_value, T_obs = T_obs, T_perm = T_perm)
+    )
 }
 
-no_pool_method(pl_1, pl_2)
+#==========================================================================
+resultat <- no_pool_method(pl_1, pl_2)
+
+hist(resultat$T_perm, breaks = 20, col = "steelblue", border = "white",
+     main = "Distribution de T sous H0",
+     xlab = "T")
+abline(v = resultat$T_obs, col = "red", lwd = 2)
+legend("topright", legend = c("T_obs"), col = "red", lwd = 2)
+
+
+resultat$p_value
+
 ```
 
 ```{r}

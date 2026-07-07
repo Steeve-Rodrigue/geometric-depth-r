@@ -112,7 +112,7 @@ power_pool_method <- sapply(delta_grid, function(d) {
 # 
 power_no_pool_method <- sapply(delta_grid, function(d) {
   cat("delta =", d, "\n")
-  power_sc1(delta = d, test_fun = no_pool_method, B = 50)
+  power_sc1(delta = d, test_fun = no_pool_method, B = 100)
 })
 # ==============================================================================
 # VISUALISATION MULTI-MÉTHODES
@@ -272,7 +272,7 @@ power_pool_method <- sapply(delta_grid, function(d) {
 # 
 power_no_pool_method <- sapply(delta_grid, function(d) {
   cat("delta =", d, "\n")
-  power_sc2(delta = d, test_fun = no_pool_method, B = 50)
+  power_sc2(delta = d, test_fun = no_pool_method, B = 100)
 })
 # ==============================================================================
 # VISUALISATION MULTI-MÉTHODES
@@ -441,7 +441,7 @@ power_pool_method <- sapply(delta_grid, function(d) {
 # 
 power_no_pool_method <- sapply(delta_grid, function(d) {
   cat("delta =", d, "\n")
-  power_sc3(delta = d, test_fun = no_pool_method, B = 50)
+  power_sc3(delta = d, test_fun = no_pool_method, B = 100)
 })
 # ==============================================================================
 # VISUALISATION MULTI-MÉTHODES
@@ -609,7 +609,7 @@ power_pool_method <- sapply(delta_grid, function(d) {
 # 
 power_no_pool_method <- sapply(delta_grid, function(d) {
   cat("delta =", d, "\n")
-  power_sc4(delta = d, test_fun = no_pool_method, B = 50)
+  power_sc4(delta = d, test_fun = no_pool_method, B = 100)
 })
 # ==============================================================================
 # VISUALISATION MULTI-MÉTHODES
@@ -755,12 +755,12 @@ delta_grid <- seq(1, 1, by = 1)
 
 power_wil_test <- sapply(delta_grid, function(d) {
   cat("delta =", d, "\n")
-  power_sc2(delta = d, test_fun = wil_test, B = 50)
+  power_sc2(delta = d, test_fun = wil_test, B = 100)
 })
 
 power_pool_method <- sapply(delta_grid, function(d) {
   cat("delta =", d, "\n")
-  power_sc2(delta = d, test_fun = pool_method, B = 50)
+  power_sc2(delta = d, test_fun = pool_method, B = 100)
 })
 
 # ==============================================================================
@@ -793,8 +793,8 @@ grid()
 
 # Ajout d' une légende pour distinguer les 3 méthodes
 legend("topleft",
-       legend = c("Wilcoxon (Tukey)", "pool_method_ks"),
-       col = c("darkviolet", "blue", "green),
+       legend = c("Wilcoxon (Tukey)", "pool_method_ks", "no_pool_ks"),
+       col = c("darkviolet", "blue", "green"),
        lty = 1,
        pch = 19,
        pt.cex = 0.6,
