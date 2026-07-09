@@ -30,7 +30,7 @@ data_typic_made_all_players <- lapply(data_made_by_player, function(joueur_data)
     parConst1 = -2,
     parConst2 = 5
   )
-  seuil_matchs <- quantile(prof_matchs, probs = 0, na.rm = TRUE)
+  seuil_matchs <- quantile(prof_matchs, probs = 0.4, na.rm = TRUE)
   joueur_data[prof_matchs >= seuil_matchs]
 })
 names(data_typic_made_all_players) <- names(data_made_by_player)
@@ -47,7 +47,7 @@ n <- length(points)   # nombre de JOUEURS (plus nombre de matchs)
 # --- paramètres ----------------------------------------------------------------
 nDirs     <- 100
 lambda    <- 0.6
-nClusters <- 3
+nClusters <- 4
 M         <- 5
 L         <- 5
 Tval      <- 0
@@ -206,7 +206,7 @@ calcReDs <- function(points, labels, nDirs, lambda = 0.6,
 # CALCUL DE LA MATRICE DE DISTANCES (entre joueurs)
 # ==============================================================================
 
-sigma_kde <- 2
+sigma_kde <- 3
 dists <- dist.matchs.parallel(points, sigma_kde,
                                nproc = 20, cltype = "SOCK")
 
@@ -359,3 +359,11 @@ cat("\nPartition finale :\n")
 print(table(labels))
 partition_finale <- labels
 print(partition_finale)   # noms des joueurs + cluster assigné
+
+
+
+
+
+
+View(D_joueur)
+View(dists)

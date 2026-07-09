@@ -318,30 +318,110 @@ legend("topleft",
 
 
 # --- paramètres globaux -------------------------------------------------------
+
+A <- replicate(n = 1, expr = {
+    sim_ppp <- rpoispp(lambda = lambda0, win = W)
+    list(coords = cbind(sim_ppp$x, sim_ppp$y))
+  }, simplify = FALSE)
+
+
+
 set.seed(0)
 W <- W_GLOBAL <- owin(c(0, 1), c(0, 1))
 lambda0 <- LAMBDA_0_GLOBAL   <- 20
 n_matches <- N_MATCHES_GLOBAL  <- 15
 alpha <- 0.05
-B <- 50
-
-test_fun <- wil_test
-test_fun <- pool_method
-# test_fun <- no_pool_method
-
-
+kappa <- 10
+B <- 20
+r_max <-0.05
 delta <- 1
 
-pl_H0 <- simulate_sample_H0(n_matches = n_matches, lambda0 = lambda0, W = W)
-pl_H1 <- simulate_sample_H1_sc1(delta = delta, n_matches = n_matches,
-                                lambda0 = lambda0, W = W)
+
+test_fun <- wil_test #no permutation so no histogram
+test_fun <- pool_method
+test_fun <- no_pool_method_ref_fix 
+test_fun <- no_pool_method_ref_perm
+test_fun <- pool_method_two_ref
+test_fun <- no_pool_method_two_test_ref_fix 
 
 
-p_value <- test_fun(pl_H0, pl_H1)$p_value
+
+
+pl_H0 <- replicate(n = n_matches, expr = {
+                  sim_ppp <- rpoispp(lambda = lambda0, win = W)
+                  list(coords = cbind(sim_ppp$x, sim_ppp$y))
+                }, simplify = FALSE)
+#=================================================================================================
+#Scenario 1 : 
+delta <- 3
+lambda_alternative <- lambda0 * (1 + delta)
+
+pl_H1 <- replicate(n = n_matches, expr = {
+          sim_ppp <- rpoispp(lambda = lambda_alternative, win = W)
+          list(coords = cbind(sim_ppp$x, sim_ppp$y))
+        }, simplify = FALSE)
+
+#Scenario 2 : 
+delta <- 3
+f_gradient <- function(x, y) 2 * lambda0 * (delta * x + (1 - delta) * 0.5)
+
+pl_H1 <- replicate(n = n_matches, expr = {
+                  sim_ppp <- rpoispp(lambda = f_gradient, win = W)
+                  list(coords = cbind(sim_ppp$x, sim_ppp$y))
+                }, simplify = FALSE)
+
+#Scenario 3 :
+delta <- 1
+kappa <- 5
+mu_thomas <- lambda0 / kappa
+sigma_max <- 0.10
+sigma_min <- 0.02
+sigma     <- sigma_max * (1 - delta) + sigma_min * delta
+
+pl_H1 <- replicate(n = n_matches, expr = {
+          sim_ppp <- rThomas(kappa = kappa, scale = sigma, mu = mu_thomas, win = W)
+          list(coords = cbind(sim_ppp$x, sim_ppp$y))
+        }, simplify = FALSE)
+
+#Scenario 4 :
+delta <- 4
+r_max <-0.05
+r_hc       <- delta * r_max
+lambda_mat <- lambda0 * 3
+
+pl_H1 <-replicate(n = n_matches, expr = {
+          if (r_hc == 0) {
+            sim_ppp <- rpoispp(lambda = lambda0, win = W)
+          } else {
+            sim_ppp <- rMaternII(kappa = lambda_mat, r = r_hc, win = W)
+          }
+          list(coords = cbind(sim_ppp$x, sim_ppp$y))
+        }, simplify = FALSE)
+
+#=================================================================================================
+plot(pl_H0[[1]]$coords, xlim = c(0, 1), ylim = c(0, 1), main = "Sample H0", xlab = "X", ylab = "Y")
+
+dev.new()
+plot(pl_H1[[1]]$coords, xlim = c(0, 1), ylim = c(0, 1), main = "Sample H1", xlab = "X", ylab = "Y")
+
+set.seed(0)
+resultat <- test_fun(pl_H0, pl_H1)
+
+
+p_value <- resultat$p_value
+p_value
 p_value <= alpha
 
 
+hist(resultat$T_perm,
+     col    = "steelblue",
+     border = "black",
+     main   = "Distribution de T sous H0",
+     xlab   = "T",
+     xlim   = range(c(resultat$T_perm, resultat$T_obs)))
 
+abline(v = resultat$T_obs, col = "red", lwd = 2)
+legend("topright", legend = c("T_obs"), col = "red", lwd = 2)
 
 
 reject <- logical(B)
@@ -356,16 +436,10 @@ for (b in seq_len(B)) {
 }
 mean(reject)
 
-resultat <- test_fun(pl_1, pl_2)
 
-hist(resultat$T_perm, breaks = 20, col = "steelblue", border = "white",
-     main = "Distribution de T sous H0",
-     xlab = "T")
-abline(v = resultat$T_obs, col = "red", lwd = 2)
-legend("topright", legend = c("T_obs"), col = "red", lwd = 2)
-
-
-
+set.seed(0)
+figure <- ddplot_nba(pl_H0, pl_H1, Ndirs = 250,
+                                          parConst1 = -2, parConst2 = 5)
 
 
 

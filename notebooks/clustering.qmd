@@ -15,6 +15,7 @@ source("../R/nba-functions.R") #add echo = T to see more details source("./geome
 ```{r}
 library(ggplot2)
 library(ggrepel)
+library(cluster)
 library(gridExtra)
 library(ggpubr) # sudo apt-get install liblapack-dev libblas-dev gfortran
 #library(tidyverse)
@@ -67,7 +68,56 @@ files <- c(
   "Alex_Caruso_2018_2024.csv",           #11
   "Kevin_Durant_2015_2024.csv",          #12
   "LeBron_James_2015_2024.csv",          #13
-  "Joel_Embiid_2017_2022.csv"            #14
+  "Joel_Embiid_2017_2022.csv" ,          #14######################""
+  "Trae_Young_2019_2024.csv",           #15
+  "Damian_Lillard_2019_2024.csv",       #16
+  "Shai_Gilgeous-Alexander_2019_2024.csv", #17
+  "De'Aaron_Fox_2019_2024.csv",          #18
+  "Kyrie_Irving_2019_2024.csv",          #19
+  "Anfernee_Simons_2019_2024.csv",       #20
+  "Buddy_Hield_2019_2024.csv",           #21
+  "CJ_McCollum_2019_2024.csv",           #22
+  "DeMar_DeRozan_2019_2024.csv",         #23
+  "Zach_LaVine_2019_2024.csv",           #24
+  "Jaylen_Brown_2019_2024.csv",          #25
+  "Bradley_Beal_2019_2024.csv",          #26
+  "Donovan_Mitchell_2019_2024.csv",      #27
+  "Devin_Booker_2019_2024.csv",          #28
+  "Tyus_Jones_2019_2024.csv",            #29
+  "Derrick_White_2019_2024.csv",         #30
+  "Fred_VanVleet_2019_2024.csv",         #31
+  "Mike_Conley_2019_2024.csv",           #32
+  "Russell_Westbrook_2019_2024.csv",     #33
+  "Chris_Paul_2019_2024.csv",            #34
+  "Jrue_Holiday_2019_2024.csv",          #35
+  "Jalen_Brunson_2019_2024.csv",          #36
+  "Brandon_Ingram_2019_2024.csv",        #37
+  "Jimmy_Butler_2019_2024.csv",           #38
+  "Paul_George_2019_2024.csv",            #39
+  "Jayson_Tatum_2019_2024.csv",           #40
+  "Alex_Caruso_2019_2024.csv",            #41
+  "Donte_DiVincenzo_2019_2024.csv",       #42
+  "Grayson_Allen_2019_2024.csv",          #43
+  "Luke_Kennard_2019_2024.csv",           #44
+  "Tim_Hardaway_Jr._2019_2024.csv",       #45
+  "Kevin_Huerter_2019_2024.csv",          #46
+  "Norman_Powell_2019_2024.csv",          #47
+  "Caris_LeVert_2019_2024.csv",           #48
+  "Kentavious_Caldwell-Pope_2019_2024.csv", #49
+  "Josh_Hart_2019_2024.csv",              #50
+  "Terry_Rozier_2019_2024.csv",           #51
+  "Malik_Monk_2019_2024.csv",              #52
+  "Julius_Randle_2019_2024.csv",          #53
+  "Dillon_Brooks_2019_2024.csv",         #54
+  "Tobias_Harris_2019_2024.csv",         #55
+  "Harrison_Barnes_2019_2024.csv",       #56
+  "Gordon_Hayward_2019_2024.csv",        #57
+  "OG_Anunoby_2019_2024.csv",            #58
+  "Andrew_Wiggins_2019_2024.csv",        #59
+  "Khris_Middleton_2019_2024.csv",       #60
+  "Pascal_Siakam_2019_2024.csv",         #61
+  "Mikal_Bridges_2019_2024.csv"          #62
+
   
 )
 setwd("../data")
@@ -95,7 +145,7 @@ data_made_by_player <- lapply(data_by_player, function(joueur) {
   nba_data_depth_made(joueur)
 })
 names(data_made_by_player) <- names(data_by_player)
-
+set.seed(42)
 # Keep only the most typical matches according to Tukey depth
 data_typic_made_all_players <- lapply(data_made_by_player, function(joueur_data) {
   prof_matchs <- depths.Tukey(
@@ -107,7 +157,7 @@ data_typic_made_all_players <- lapply(data_made_by_player, function(joueur_data)
     parConst1 = -2,
     parConst2 = 5
   )
-  seuil_matchs <- quantile(prof_matchs, probs = 0.45, na.rm = TRUE)
+  seuil_matchs <- quantile(prof_matchs, probs = 0.4, na.rm = TRUE)
   joueur_filtre <- joueur_data[prof_matchs >= seuil_matchs]
   return(joueur_filtre)
 })
@@ -147,7 +197,7 @@ p02 <- plot_density_court(shots_made_by_player[[12]] , sigma = 4)
 library(patchwork)
 
 p1 <- plot_season2(shots_made_by_player[[12]])
-p2 <- plot_season2(shots_made_by_player[[10]])
+p2 <- plot_season2(shots_made_by_player[[52]])
 
 (p1 + p2)
 
@@ -159,7 +209,7 @@ p2 <- plot_season2(shots_made_by_player[[10]])
 
 ```{r}
 library(spatstat)
-
+set.seed(42)
 evaluer_distance <- function(data_joueur_A, data_joueur_B, sigma = 3, fenetre = owin(c(-25, 25), c(-47.1, 0)) ) {
   
   ppp_A <- ppp(x = data_joueur_A$LOC_X, y = data_joueur_A$LOC_Y, window = fenetre)
@@ -299,8 +349,8 @@ evaluer_distance_matchs <- function(match_A, match_B, c_cutoff = 5, fenetre_terr
 
 ```{r}
 n <- length(shots_made_by_player)
-D <- matrix(0, n, n)
-
+D_joueur <- matrix(0, n, n)
+set.seed(42)
 for(i in 1:n){
   for(j in i:n){
     
@@ -311,17 +361,17 @@ for(i in 1:n){
       #sigma = 3
     )
     
-    D[i, j] <- dij
-    D[j, i] <- dij
+    D_joueur[i, j] <- dij
+    D_joueur[j, i] <- dij
   }
 }
 
-rownames(D) <- names(data_by_player)
-colnames(D) <- names(data_by_player)
+rownames(D_joueur) <- names(data_by_player)
+colnames(D_joueur) <- names(data_by_player)
 
 # Affichage de la matrice et du Heatmap
-D
-heatmap(D)
+D_joueur
+#heatmap(D_joueur, main = "Heatmap des distances entre joueurs (KDE)", col = terrain.colors(100))
 ```
 
 #### Estimation de l'intensité
@@ -455,8 +505,11 @@ mon_theme<- theme(
 library(ggplot2)
 library(ggrepel)
 
-rownames(dists) <- names(data_by_player)
-D <- dists
+#rownames(dists) <- names(data_by_player)
+#D <- dists
+
+D <- D_joueur
+
 mds_classique <- cmdscale(D, k = 2, eig = TRUE)
 set.seed(42)
 # Extraction des coordonnées 2D
@@ -482,19 +535,27 @@ cah_core <- hclust(as.dist(D), method = "ward.D2")
 plot(cah_core, main = "Dendrogramme des joueurs", xlab = "Joueurs", sub = "")
 
 # Découpage en 3 clusters
-cluster_assignments <- cutree(cah_core, k = 2)
+cluster_assignments <- cutree(cah_core, k = 4)
+names(cluster_assignments) <- names(data_by_player)
 
 ```
 
 ```{r}
 set.seed(42)
-cluster_assignments <- partition_finale
+
+rownames(dists) <- names(data_by_player)
+D <- dists
+
+#rownames(D_joueur) <- names(data_by_player)
+#D <- D_joueur
+cluster <- cluster_assignments
+#cluster <- partition_finale
 proj_mds <- cmdscale(D, k = 2)
 plot_df <- data.frame(
   Dim1    = proj_mds[, 1],
   Dim2    = proj_mds[, 2],
   Match   = rownames(D),
-  Cluster = as.factor(cluster_assignments)
+  Cluster = as.factor(cluster)
 )
 
 # Graphique final des profils types du joueur
@@ -513,6 +574,7 @@ ggplot(plot_df, aes(x = Dim1, y = Dim2, color = Cluster, label = Match)) +
 
 # 1. Définir la grille des valeurs de 'probs' à tester
 v_probs <- seq(0, 0.9, by = 0.05) 
+#v_probs <- 0.05
 scores_silhouette <- numeric(length(v_probs))
 
 # Nombre de joueurs
@@ -556,7 +618,7 @@ for (p_idx in seq_along(v_probs)) {
   
   
   cah_core <- hclust(as.dist(D), method = "ward.D2")
-  cluster_assignments <- cutree(cah_core, k = 2) # Tu as mis k=2 (le commentaire disait 3)
+  cluster_assignments <- cutree(cah_core, k = 4) # Tu as mis k=2 (le commentaire disait 3)
   
   sil <- silhouette(cluster_assignments, as.dist(D))
   scores_silhouette[p_idx] <- mean(sil[, 3])
@@ -653,7 +715,7 @@ for (p_idx in seq_along(v_probs)) {
     }
   }
   cah_core <- hclust(as.dist(D), method = "ward.D2")
-  cluster_assignments <- cutree(cah_core, k = 2) 
+  cluster_assignments <- cutree(cah_core, k = 4) 
   
   sil <- silhouette(cluster_assignments, as.dist(D))
   scores_silhouette[p_idx] <- mean(sil[, 3])
@@ -730,7 +792,7 @@ for (p_idx in seq_along(v_probs)) {
   }
   
     cah_core <- hclust(as.dist(D), method = "ward.D2")
-    cluster_assignments <- cutree(cah_core, k = 2) # Tu as mis k=2 (le commentaire disait 3)
+    cluster_assignments <- cutree(cah_core, k = 4) # Tu as mis k=2 (le commentaire disait 3)
     
     sil <- silhouette(cluster_assignments, as.dist(D))
     scores_silhouette[p_idx] <- mean(sil[, 3])
