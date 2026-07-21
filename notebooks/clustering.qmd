@@ -95,28 +95,26 @@ files <- c(
   "Jimmy_Butler_2019_2024.csv",           #38
   "Paul_George_2019_2024.csv",            #39
   "Jayson_Tatum_2019_2024.csv",           #40
-  "Alex_Caruso_2019_2024.csv",            #41
-  "Donte_DiVincenzo_2019_2024.csv",       #42
-  "Grayson_Allen_2019_2024.csv",          #43
-  "Luke_Kennard_2019_2024.csv",           #44
-  "Tim_Hardaway_Jr._2019_2024.csv",       #45
-  "Kevin_Huerter_2019_2024.csv",          #46
-  "Norman_Powell_2019_2024.csv",          #47
-  "Caris_LeVert_2019_2024.csv",           #48
-  "Kentavious_Caldwell-Pope_2019_2024.csv", #49
-  "Josh_Hart_2019_2024.csv",              #50
-  "Terry_Rozier_2019_2024.csv",           #51
-  "Malik_Monk_2019_2024.csv",              #52
-  "Julius_Randle_2019_2024.csv",          #53
-  "Dillon_Brooks_2019_2024.csv",         #54
-  "Tobias_Harris_2019_2024.csv",         #55
-  "Harrison_Barnes_2019_2024.csv",       #56
-  "Gordon_Hayward_2019_2024.csv",        #57
-  "OG_Anunoby_2019_2024.csv",            #58
-  "Andrew_Wiggins_2019_2024.csv",        #59
-  "Khris_Middleton_2019_2024.csv",       #60
-  "Pascal_Siakam_2019_2024.csv",         #61
-  "Mikal_Bridges_2019_2024.csv"          #62
+  "Donte_DiVincenzo_2019_2024.csv",       #41
+  "Grayson_Allen_2019_2024.csv",          #42
+  "Luke_Kennard_2019_2024.csv",           #43
+  "Tim_Hardaway_Jr._2019_2024.csv",       #44
+  "Kevin_Huerter_2019_2024.csv",          #45
+  "Norman_Powell_2019_2024.csv",          #46
+  "Caris_LeVert_2019_2024.csv",           #47
+  "Kentavious_Caldwell-Pope_2019_2024.csv", #48
+  "Josh_Hart_2019_2024.csv",              #49
+  "Terry_Rozier_2019_2024.csv",           #50
+  "Malik_Monk_2019_2024.csv",              #51
+  "Dillon_Brooks_2019_2024.csv",         #52
+  "Tobias_Harris_2019_2024.csv",         #53
+  "Harrison_Barnes_2019_2024.csv",       #54
+  "Gordon_Hayward_2019_2024.csv",        #55
+  "OG_Anunoby_2019_2024.csv",            #56
+  "Andrew_Wiggins_2019_2024.csv",        #57
+  "Khris_Middleton_2019_2024.csv",       #58
+  "Pascal_Siakam_2019_2024.csv",         #69
+  "Mikal_Bridges_2019_2024.csv"          #60
 
   
 )
@@ -157,7 +155,7 @@ data_typic_made_all_players <- lapply(data_made_by_player, function(joueur_data)
     parConst1 = -2,
     parConst2 = 5
   )
-  seuil_matchs <- quantile(prof_matchs, probs = 0.4, na.rm = TRUE)
+  seuil_matchs <- quantile(prof_matchs, probs = 0.0, na.rm = TRUE)
   joueur_filtre <- joueur_data[prof_matchs >= seuil_matchs]
   return(joueur_filtre)
 })
@@ -196,10 +194,10 @@ p02 <- plot_density_court(shots_made_by_player[[12]] , sigma = 4)
 ```{r}
 library(patchwork)
 
-p1 <- plot_season2(shots_made_by_player[[12]])
-p2 <- plot_season2(shots_made_by_player[[52]])
+p1 <- plot_season2(shots_made_by_player[[1]])
+p2 <- plot_season2(shots_made_by_player[[8]])
 
-(p1 + p2)
+(p1 + p2 ) + plot_layout(ncol = 2)
 
 ```
 
@@ -530,6 +528,7 @@ ggplot(mds_df, aes(x = Dim1, y = Dim2, label = Joueur)) +
 ```
 
 ```{r}
+dev.new()
 # Classification Ascendante Hiérarchique (méthode de Ward)
 cah_core <- hclust(as.dist(D), method = "ward.D2")
 plot(cah_core, main = "Dendrogramme des joueurs", xlab = "Joueurs", sub = "")
@@ -542,14 +541,14 @@ names(cluster_assignments) <- names(data_by_player)
 
 ```{r}
 set.seed(42)
-
-rownames(dists) <- names(data_by_player)
-D <- dists
+dev.new()
+#rownames(dists) <- names(data_by_player)
+#D <- dists
 
 #rownames(D_joueur) <- names(data_by_player)
-#D <- D_joueur
-cluster <- cluster_assignments
-#cluster <- partition_finale
+D <- D_joueur
+#cluster <- cluster_assignments
+cluster <- partition_finale
 proj_mds <- cmdscale(D, k = 2)
 plot_df <- data.frame(
   Dim1    = proj_mds[, 1],
@@ -1069,7 +1068,7 @@ set.seed(42)
 partition <- partition_finale
 #partition <- partition_f
 
-D_matchs = dists
+#D_matchs = dists
 
 proj_mds <- cmdscale(D_matchs, k = 2)
 plot_global_df<- data.frame(
@@ -1291,4 +1290,56 @@ cluster_2 <- matchs_joueur[names(partition)[partition == 2]]
 # --- DD-plot entre les deux clusters -----------------------------------------
 figure_clusters <- ddplot_nba(cluster_1, cluster_2, Ndirs = 250,
                               parConst1 = -2, parConst2 = 5)
+```
+
+```{r}
+# --- joueur le plus profond par cluster --------------------------------------
+for (cl in sort(unique(partition_finale))) {
+  
+  # joueurs du cluster
+  joueurs_cl <- names(partition_finale)[partition_finale == cl]
+  
+  # données des joueurs du cluster
+  data_cl <- lapply(shots_made_by_player[joueurs_cl], function(x) {
+    list(
+      coords = as.matrix(x[, c("LOC_X", "LOC_Y")])
+    )
+  })
+  
+  # profondeurs des joueurs du cluster par rapport au cluster
+  depths_cl <- depths.Tukey(data_cl, data_cl,
+                            nDirs     = 250,
+                            subs      = FALSE,
+                            exactEst  = FALSE,
+                            parConst1 = -2,
+                            parConst2 = 5)
+  
+  # joueur le plus profond
+  names(depths_cl) <- joueurs_cl
+  joueur_central   <- names(which.max(depths_cl))
+  
+  cat("Cluster", cl, ":\n")
+  cat("  Joueurs     :", joueurs_cl, "\n")
+  cat("  Plus profond:", joueur_central, "(depth =", max(depths_cl), ")\n\n")
+}
+
+```
+
+```{r}
+library(patchwork)
+
+p1 <- plot_season2(shots_made_by_player[[9]]) +
+  ggtitle("Cluster 1 - Giannis Antetokounmpo")
+
+p2 <- plot_season2(shots_made_by_player[[54]]) +
+  ggtitle("Cluster 2 - Tobias Harris")
+
+p3 <- plot_season2(shots_made_by_player[[3]]) +# 3Klay Thompson_44 Luke Kennard
+  ggtitle("Cluster 3 - Klay Thompson")
+
+p4 <- plot_season2(shots_made_by_player[[14]]) +
+  ggtitle("Cluster 4 - Joel Embiid")
+
+(p1 + p2 + p3 + p4) +
+  plot_layout(ncol = 2)
 ```

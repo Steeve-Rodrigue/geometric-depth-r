@@ -329,12 +329,14 @@ A <- replicate(n = 1, expr = {
 set.seed(0)
 W <- W_GLOBAL <- owin(c(0, 1), c(0, 1))
 lambda0 <- LAMBDA_0_GLOBAL   <- 20
-n_matches <- N_MATCHES_GLOBAL  <- 15
+n_matches <- N_MATCHES_GLOBAL  <- 75
 alpha <- 0.05
-kappa <- 10
-B <- 20
-r_max <-0.05
+B <- 100
 delta <- 1
+
+
+kappa <- 10
+r_max <-0.05
 
 
 test_fun <- wil_test #no permutation so no histogram
@@ -342,7 +344,8 @@ test_fun <- pool_method
 test_fun <- no_pool_method_ref_fix 
 test_fun <- no_pool_method_ref_perm
 test_fun <- pool_method_two_ref
-test_fun <- no_pool_method_two_test_ref_fix 
+test_fun <- no_pool_method_two_test_ref_fix
+test_fun <- ddplot_bootstrap_t_fixed_ref
 
 
 
@@ -353,7 +356,8 @@ pl_H0 <- replicate(n = n_matches, expr = {
                 }, simplify = FALSE)
 #=================================================================================================
 #Scenario 1 : 
-delta <- 3
+set.seed(42)
+delta <- 0.5
 lambda_alternative <- lambda0 * (1 + delta)
 
 pl_H1 <- replicate(n = n_matches, expr = {
@@ -362,14 +366,14 @@ pl_H1 <- replicate(n = n_matches, expr = {
         }, simplify = FALSE)
 
 #Scenario 2 : 
-delta <- 3
+delta <- 4.8
 f_gradient <- function(x, y) 2 * lambda0 * (delta * x + (1 - delta) * 0.5)
 
 pl_H1 <- replicate(n = n_matches, expr = {
                   sim_ppp <- rpoispp(lambda = f_gradient, win = W)
                   list(coords = cbind(sim_ppp$x, sim_ppp$y))
                 }, simplify = FALSE)
-
+test_fun(pl_H0, pl_H1)$p_value
 #Scenario 3 :
 delta <- 1
 kappa <- 5
@@ -405,6 +409,17 @@ dev.new()
 plot(pl_H1[[1]]$coords, xlim = c(0, 1), ylim = c(0, 1), main = "Sample H1", xlab = "X", ylab = "Y")
 
 set.seed(0)
+
+pl_H0 <- replicate(n = n_matches, expr = {
+  sim_ppp <- rpoispp(lambda = lambda0, win = W)
+  list(coords = cbind(sim_ppp$x, sim_ppp$y))
+}, simplify = FALSE)
+
+pl_H1 <- replicate(n = n_matches, expr = {
+  sim_ppp <- rpoispp(lambda = f_gradient, win = W)
+  list(coords = cbind(sim_ppp$x, sim_ppp$y))
+}, simplify = FALSE)
+
 resultat <- test_fun(pl_H0, pl_H1)
 
 
@@ -426,7 +441,7 @@ legend("topright", legend = c("T_obs"), col = "red", lwd = 2)
 
 reject <- logical(B)
 for (b in seq_len(B)) {
-  reject[b] <- mc_iteration_sc1(
+  reject[b] <- mc_iteration_sc2(
     delta     = delta,
     test_fun  = test_fun,
     alpha     = alpha,
@@ -436,9 +451,10 @@ for (b in seq_len(B)) {
 }
 mean(reject)
 
-
+pl_1 = nba_data_depth_made(data_by_player[[13]])
+pl_2 = nba_data_depth_made(data_by_player[[14]])
 set.seed(0)
-figure <- ddplot_nba(pl_H0, pl_H1, Ndirs = 250,
+figure <- ddplot_nba(pl_1, pl_2, Ndirs = 250,
                                           parConst1 = -2, parConst2 = 5)
 
 

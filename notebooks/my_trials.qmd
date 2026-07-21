@@ -155,16 +155,9 @@ plot_match2(p_made,names(data)[deepesty[2]])
 
 ```{r}
 # --- joueurs et saisons ------------------------------------------------------
-year = 2019
-players <- c("Bam Adebayo", "Giannis Antetokounmpo","stephen curry")
-seasons <- c(year, year, year)
-# --- calcul des profondeurs par joueur ---------------------------------------
-depths_by_player <- lapply(seq_along(players), function(i) {
-  cat(sprintf("Processing %s (season %d) ...\n", players[i], seasons[i]))
-  shots  <- nba_data(Player = players[i], season = seasons[i])
-  data   <- nba_data_depth(shots)
-  depths <- depth_all_matches(
-    matches   = data,
+depths_by_player <- lapply(data_by_player, function(i) {
+   depths <- depth_all_matches(
+    matches   = i,
     Ndirs     = 250,
     parConst1 = -1,
     parConst2 = 5,
@@ -174,8 +167,8 @@ depths_by_player <- lapply(seq_along(players), function(i) {
 })
 
 # labels <- paste0(players, "\n(", seasons, ")")
-labels <- paste0(players)
-names(depths_by_player) <- labels
+#labels <- paste0(players)
+#names(depths_by_player) <- labels
 
 ```
 
@@ -189,14 +182,14 @@ names(depths_by_player) <- labels
 #            paper      = "special",
 #            width      = 10,
 #            height     = 5)
-par(mar = c(4, 4, 0.2, 0.2))
-vioplot::vioplot(depths_by_player,
+par(mar = c(6, 4, 0.2, 0.2))
+boxplot(depths_by_player,
        # col     = c("steelblue", "firebrick", "gold", "seagreen"),
         ylab    = "Tukey depth",
         main    = "",
-        las     = 1,
+        las     = 2,
         border  = "grey30",
-       cex.axis = 1,
+       cex.axis = 0.5,
         outline = TRUE)
 abline(h = 0.5, lty = 2, col = "grey50")
 # dev.off()
@@ -925,7 +918,7 @@ wil_test <- function(pl_1, pl_2){
   pl_1_ref  <- pl_1[idx_ref]     # Z : référence
   pl_1_test <- pl_1[-idx_ref]    # X : reste de pl_1
   
-  pl_2_test <- pl_2[sample(n2, size = floor((1-per) * n2), replace = FALSE)]               # Y : tirs réussis du premier joueur (tous)
+  pl_2_test <- pl_2[sample(n2, size = floor((1-per) * n2), replace = FALSE)]               # Y : tirs réussis du premier joueur 
   
   
   # --- profondeurs de Z par rapport à elle-même --------------------------------
@@ -1090,7 +1083,7 @@ no_pool_method_ref_perm <- function(pl_1, pl_2){
   #set.seed(0)
   T_perm <- sapply(seq_len(B), function(b) {
     
-    perm <- sample(N)
+    #perm <- sample(N)
     
     # perm  <- sample(N,n)
     # D_X_b <- D_X[perm]
@@ -1157,63 +1150,30 @@ no_pool_method_ref_fix <- function(pl_1, pl_2){
   n <- length(X)
   m <- length(Y)
   N <- n + m
-  
   Z <- c(X, Y)
-  #set.seed(0)
-  # --- profondeurs par rapport à sa propre population ----------------------
-  D_X <- depths.Tukey(X, X, nDirs = 100,
-                      subs = FALSE, exactEst = FALSE,
-                      parConst1 = -2, parConst2 = 5)
-  D_Y <- depths.Tukey(Y, Y, nDirs = 100,
-                      subs = FALSE, exactEst = FALSE,
-                      parConst1 = -2, parConst2 = 5)
   
-  # --- fonctions de répartition empiriques ------------------------------------
-  # F_X_vals <- sapply(all_D, function(t) mean(D_X <= t))
-  # F_Y_vals <- sapply(all_D, function(t) mean(D_Y <= t))
-  # 
-  # --- statistique T(m,n) observée --------------------------------------------
-  #T_obs <- max(abs(F_X_vals - F_Y_vals))
+  # 1. Pré-calcul fixe de TOUTES les profondeurs par rapport aux deux références
+  D_Z_rel_X <- depths.Tukey(Z, X, nDirs = 100, subs = FALSE, exactEst = FALSE, parConst1 = -2, parConst2 = 5)
+  D_Z_rel_Y <- depths.Tukey(Z, Y, nDirs = 100, subs = FALSE, exactEst = FALSE, parConst1 = -2, parConst2 = 5)
+  
+  # Extraction des valeurs observées initiales
+  D_X <- D_Z_rel_X[1:n]
+  D_Y <- D_Z_rel_Y[(n+1):N]
+  
   T_obs <- ks.test(D_X , D_Y)$statistic
-  #T_obs <- (1/N) * sum((F_X_vals - F_Y_vals)^2)
-  T_obs
   
-  # --- permutations ------------------------------------------------------------
+  # 2. Boucle de permutation instantanée 
   B <- 99
-  #set.seed(0)
   T_perm <- sapply(seq_len(B), function(b) {
+    perm  <- sample(N)
+    D_X_b <- D_Z_rel_X[perm[1:n]]
+    D_Y_b <- D_Z_rel_Y[perm[(n+1):N]]
     
-    perm <- sample(N)
-    
-    # perm  <- sample(N,n)
-    # D_X_b <- D_X[perm]
-    # D_Y_b <- D_Y[-perm]
-    
-    perm <- sample(N)
-    X_b <- Z[perm[1:n]]
-    Y_b <- Z[perm[(n+1):N]]
-    D_X_b <- depths.Tukey(X_b, X, nDirs = 100,
-                          subs = FALSE, exactEst = FALSE,
-                          parConst1 = -2, parConst2 = 5)
-    D_Y_b <- depths.Tukey(Y_b, Y, nDirs = 100,
-                          subs = FALSE, exactEst = FALSE,
-                          parConst1 = -2, parConst2 = 5)
-    
-    # all_D_b  <- c(D_X_b, D_Y_b)
-    # F_X_b    <- sapply(all_D_b, function(t) mean(D_X_b <= t))
-    # F_Y_b    <- sapply(all_D_b, function(t) mean(D_Y_b <= t))
-    # 
-    #(1/N) * sum((F_X_b - F_Y_b)^2)
-    #max(abs(F_X_b - F_Y_b))
     ks.test(D_X_b, D_Y_b)$statistic
   })
   
-  # --- p-valeur ----------------------------------------------------------------
   p_value <- (sum(T_perm >= T_obs) + 1) / (B + 1)
-  # cat("T_obs =", T_obs, " p-value =", p_value, "\n")
-  return( 
-    list(p_value = p_value, T_obs = T_obs, T_perm = T_perm)
-  )
+  return(list(p_value = p_value, T_obs = T_obs, T_perm = T_perm))
 }
 resultat <- no_pool_method_ref_fix(pl_1, pl_2)
 
@@ -1240,105 +1200,86 @@ no_pool_method_two_test_ref_fix <- function(pl_1, pl_2){
   # figure <- ddplot_nba(pl_1, pl_2, Ndirs = 250,
   #                      parConst1 = -2, parConst2 = 5)
   #------------------------------------------------------------------------------
-  
   X <- pl_1
   Y <- pl_2
   n <- length(X)
   m <- length(Y)
   N <- n + m
-  
   Z <- c(X, Y)
-  #set.seed(0)
-  # --- profondeurs par rapport à la premiere population ----------------------
-  D_X1 <- depths.Tukey(X, X, nDirs = 100,
-                      subs = FALSE, exactEst = FALSE,
-                      parConst1 = -2, parConst2 = 5)
-  D_Y1 <- depths.Tukey(Y, X, nDirs = 100,
-                      subs = FALSE, exactEst = FALSE,
-                      parConst1 = -2, parConst2 = 5)
   
+  # 1. PRÉ-CALCUL UNIQUE de toutes les profondeurs croisées
+  # Profondeurs de TOUT Z par rapport à la référence X
+  D_Z_rel_X <- depths.Tukey(Z, X, nDirs = 250, subs = FALSE, exactEst = FALSE, parConst1 = -2, parConst2 = 5)
+  # Profondeurs de TOUT Z par rapport à la référence Y
+  D_Z_rel_Y <- depths.Tukey(Z, Y, nDirs = 250, subs = FALSE, exactEst = FALSE, parConst1 = -2, parConst2 = 5)
   
+  # Extraction des statistiques observées initiales
+  D_X1 <- D_Z_rel_X[1:n]
+  D_Y1 <- D_Z_rel_X[(n+1):N]
   T1_obs <- ks.test(D_X1 , D_Y1)$statistic
-  # --- profondeurs par rapport à la deuxieme population ----------------------
-  D_X2 <- depths.Tukey(X, Y, nDirs = 100,
-                       subs = FALSE, exactEst = FALSE,
-                       parConst1 = -2, parConst2 = 5)
-  D_Y2 <- depths.Tukey(Y, Y, nDirs = 100,
-                       subs = FALSE, exactEst = FALSE,
-                       parConst1 = -2, parConst2 = 5)
   
-  
+  D_X2 <- D_Z_rel_Y[1:n]
+  D_Y2 <- D_Z_rel_Y[(n+1):N]
   T2_obs <- ks.test(D_X2 , D_Y2)$statistic
-
   
-  # --- permutations ------------------------------------------------------------
-  B <- 99
-  #set.seed(0)
+  # 2. BOUCLES DE PERMUTATION (Simples et instantanées)
+  B <- 500
+  
   T1_perm <- sapply(seq_len(B), function(b) {
-    
     perm <- sample(N)
-    X_b <- Z[perm[1:n]]
-    Y_b <- Z[perm[(n+1):N]]
-    
-    D_X1_b <- depths.Tukey(X_b, X, nDirs = 100,
-                          subs = FALSE, exactEst = FALSE,
-                          parConst1 = -2, parConst2 = 5)
-    D_Y1_b <- depths.Tukey(Y_b, X, nDirs = 100,
-                          subs = FALSE, exactEst = FALSE,
-                          parConst1 = -2, parConst2 = 5)
-    
-    ks.test(D_X1_b, D_Y1_b)$statistic
-  })
-    #------------------------------------------------------------------------------
-  T2_perm <- sapply(seq_len(B), function(b) {
-    
-    perm <- sample(N)
-    X_b <- Z[perm[1:n]]
-    Y_b <- Z[perm[(n+1):N]]
-    
-    D_X2_b <- depths.Tukey(X_b, Y, nDirs = 100,
-                           subs = FALSE, exactEst = FALSE,
-                           parConst1 = -2, parConst2 = 5)
-    D_Y2_b <- depths.Tukey(Y_b, Y, nDirs = 100,
-                           subs = FALSE, exactEst = FALSE,
-                           parConst1 = -2, parConst2 = 5)
-    
-    
-    ks.test(D_X2_b, D_Y2_b)$statistic
+    ks.test(D_Z_rel_X[perm[1:n]], D_Z_rel_X[perm[(n+1):N]])$statistic
   })
   
-  # --- p-valeur ----------------------------------------------------------------
+  T2_perm <- sapply(seq_len(B), function(b) {
+    perm <- sample(N)
+    ks.test(D_Z_rel_Y[perm[1:n]], D_Z_rel_Y[perm[(n+1):N]])$statistic
+  })
+  
+  # 3. CALCUL DES P-VALEURS ET CORRECTION
   p1_value <- (sum(T1_perm >= T1_obs) + 1) / (B + 1)
   p2_value <- (sum(T2_perm >= T2_obs) + 1) / (B + 1)
-  # cat("T_obs =", T_obs, " p-value =", p_value, "\n")
-  return( 
-    list(p_value = 2*min(p1_value, p2_value), T_obs = c(T1_obs, T2_obs), T_perm = c(T1_perm, T2_perm))
-  )
+  
+
+  p_final <- min(1, 2 * min(p1_value, p2_value))
+  
+  return(list(
+    p_value = p_final, 
+    T_obs   = c(T1_obs, T2_obs), 
+    T_perm  = list(T1_perm, T2_perm)
+  ))
 }
 
 #==========================================================================
+pl_1 = nba_data_depth_made(data_by_player[[9]])
+pl_2 = nba_data_depth_missed(data_by_player[[9]])
+
+pl_1 = nba_data_depth_made(data_by_player[[8]])
+pl_2 = nba_data_depth_made(data_by_player[[1]])
+
 resultat <- no_pool_method_two_test_ref_fix(pl_1, pl_2)
+resultat$p_value
+
 
 
 par(mfrow = c(1, 2))
 
 # Test 1
-hist(resultat$T_perm[1:99],
+hist(resultat$T_perm[[1]],
      col    = "steelblue",
      border = "black",
      main   = "Distribution T1 (ref = X)",
      xlab   = "T",
-     xlim   = range(c(resultat$T_perm[1:99], resultat$T_obs[1])))
+     xlim   = range(c(resultat$T_perm[[1]], resultat$T_obs[1])))
 abline(v = resultat$T_obs[1], col = "red", lwd = 2)
 legend("topright", legend = c("T_obs"), col = "red", lwd = 2)
 
 # Test 2
-hist(resultat$T_perm[100:198],
+hist(resultat$T_perm[[2]],
      col    = "steelblue",
      border = "black",
      main   = "Distribution T2 (ref = Y)",
      xlab   = "T",
-     xlim   = range(c(resultat$T_perm[100:198], resultat$T_obs[2])))
+     xlim   = range(c(resultat$T_perm[[1]], resultat$T_obs[2])))
 abline(v = resultat$T_obs[2], col = "red", lwd = 2)
 legend("topright", legend = c("T_obs"), col = "red", lwd = 2)
 
@@ -1386,7 +1327,7 @@ pool_method_two_ref <- function(pl_1, pl_2){
   #set.seed(0)
   T_perm <- sapply(seq_len(B), function(b) {
     
-    perm <- sample(N)
+    #perm <- sample(N)
     
     # perm  <- sample(N,n)
     # D_X_b <- D_X[perm]
@@ -1433,4 +1374,209 @@ legend("topright", legend = c("T_obs"), col = "red", lwd = 2)
 
 resultat$T_obs
 resultat$p_value
+```
+
+```{r}
+ddplot_bootstrap_fixed_ref <- function(pl_1, pl_2, B = 99) {
+  curNdirs = 250
+  #figure <- ddplot_nba(pl_1, pl_2, Ndirs = 250, parConst1 = -2, parConst2 = 5)
+  
+  # --- 0. PRÉPARATION DES DONNÉES ---
+  X <- pl_1
+  Y <- pl_2
+  n <- length(X)
+  m <- length(Y)
+  N <- n + m
+  Z <- c(X, Y) # Échantillon joint
+  
+  # --- 1. CALCUL DES PROFONDEURS DE BASE (UNE SEULE FOIS) ---
+  # On calcule la profondeur de TOUT LE MONDE (Z) par rapport aux vrais X et Y
+  D_X_global <- depths.Tukey(Z, X, nDirs = 250, subs = FALSE, exactEst = FALSE, parConst1 = -2, parConst2 = 5)
+  D_Y_global <- depths.Tukey(Z, Y, nDirs = 250, subs = FALSE, exactEst = FALSE, parConst1 = -2, parConst2 = 5)
+  
+  # --- 2. FONCTION INTERNE : RÉGRESSION RAPIDE VIA LM ---
+  # Cette fonction prend directement des vecteurs de scores numériques déjà calculés
+  compute_t_from_scores <- function(dx, dy) {
+    mod <- lm(dy ~ dx)
+    coef_matrix <- summary(mod)$coefficients
+    
+    T0 <- coef_matrix[1, 1] / coef_matrix[1, 2]       # beta_0 / std_error
+    T1 <- (coef_matrix[2, 1] - 1) / coef_matrix[2, 2] # (beta_1 - 1) / std_error
+    
+    return(c(T0 = T0, T1 = T1))
+  }
+  
+  # --- 3. STATISTIQUES OBSERVÉES ---
+  T_obs <- compute_t_from_scores(D_X_global, D_Y_global)
+  T0_obs <- T_obs["T0"]
+  T1_obs <- T_obs["T1"]
+  
+  # --- 4. BOUCLE BOOTSTRAP ---
+  T0_boot <- numeric(B)
+  T1_boot <- numeric(B)
+  
+  for (b in 1:B) {
+    
+    # # =========================================================================
+    # # OPTION A : RÉFÉRENCE FIXE (Actuelle - Ultra Rapide)
+    # # On se contente de ré-échantillonner les scores de profondeur pré-calculés
+    # # =========================================================================
+    indices_boot <- sample(N, size = N, replace = TRUE)
+    D_X_boot     <- D_X_global[indices_boot]
+    D_Y_boot     <- D_Y_global[indices_boot]
+
+    T_b <- compute_t_from_scores(D_X_boot, D_Y_boot)
+    #=========================================================================
+    
+    
+     # =========================================================================
+     # OPTION B : RÉFÉRENCE DYNAMIQUE (Commentée - Conforme à l'article, plus lente)
+     # Pour l'activer : commente l'OPTION A ci-dessus et décommende le bloc ci-dessous
+     # =========================================================================
+     # 1. On ré-échantillonne directement les objets/courbes de la population globale Z
+     Z_boot <- sample(Z, size = N, replace = TRUE)
+    #
+     # 2. On sépare Z_boot pour obtenir les nouvelles populations de référence bootstrapées
+     X_boot <- Z_boot[1:n]
+     Y_boot <- Z_boot[(n+1):N]
+    #
+     # 3. On recalcule entièrement les profondeurs de Tukey par rapport à ces nouvelles références
+     # Note: nDirs est baissé à 20 pour économiser du temps machine lors du bootstrap
+     D_X_boot <- depths.Tukey(Z_boot, X_boot, nDirs = 100, subs = FALSE, exactEst = FALSE, parConst1 = -2, parConst2 = 5)
+     D_Y_boot <- depths.Tukey(Z_boot, Y_boot, nDirs = 100, subs = FALSE, exactEst = FALSE, parConst1 = -2, parConst2 = 5)
+
+     # 4. Calcul des statistiques sur ces nouvelles profondeurs
+     T_b <- compute_t_from_scores(D_X_boot, D_Y_boot)
+    # =========================================================================
+    
+    T0_boot[b] <- T_b["T0"]
+    T1_boot[b] <- T_b["T1"]
+  }
+  
+  # --- 5. CALCUL DES P-VALEURS ---
+  p0 <- min(1, 2 * min(mean(T0_boot > T0_obs), mean(T0_boot < T0_obs)))
+  p1 <- min(1, 2 * min(mean(T1_boot > T1_obs), mean(T1_boot < T1_obs)))
+  
+  # --- 6. CORRECTION DE HOLM-BONFERRONI ---
+  p_sorted <- sort(c(p0, p1))
+  p_final <- min(1, max(2 * p_sorted[1], p_sorted[2]))
+  
+  return(list(
+    p_value   = p_final,
+    p_details = c(p0 = p0, p1 = p1),
+    T_obs     = c(T0 = T0_obs, T1 = T1_obs)
+  ))
+}
+  resultat <- ddplot_bootstrap_fixed_ref(pl_1, pl_2, B = 99)
+
+resultat$p_value
+```
+
+```{r}
+# ==============================================================================
+# 1. PRÉPARATION DES DONNÉES ET INITIALISATION
+# ==============================================================================
+# Soit data_by_player ta liste contenant les données des joueurs
+num_players <- length(data_by_player) # Ex: ~60 joueurs
+player_names <- names(data_by_player) # Récupération des noms s'ils existent
+
+if (is.null(player_names)) {
+  player_names <- paste0("Player_", 1:num_players)
+}
+
+# Extraction préalable des profondeurs pour chaque joueur (gain de temps)
+cat("Calcul des profondeurs pour chaque joueur...\n")
+pl_depths <- lapply(data_by_player, function(df) {
+  nba_data_depth_made(df)
+})
+
+# Matrice symétrique pour stocker les p-valeurs
+p_matrix <- matrix(NA, nrow = num_players, ncol = num_players)
+rownames(p_matrix) <- player_names
+colnames(p_matrix) <- player_names
+
+# ==============================================================================
+# 2. BOUCLE DE TEST PAIRWISE (DEUX À DEUX)
+# ==============================================================================
+cat("Lancement des tests d'homogénéité pairwise...\n")
+
+# Calcul uniquement du triangle supérieur pour éviter les doublons
+for (i in 1:(num_players - 1)) {
+  for (j in (i + 1):num_players) {
+    
+    # Test entre le joueur i et le joueur j
+    res <- no_pool_method_two_test_ref_fix(pl_depths[[i]], pl_depths[[j]])
+    
+    # Stockage de la p-valeur
+    p_matrix[i, j] <- res$p_value
+    p_matrix[j, i] <- res$p_value # Matrice symétrique
+  }
+  
+  # Diagonale : comparaison d'un joueur avec lui-même
+  p_matrix[i, i] <- 1
+}
+p_matrix[num_players, num_players] <- 1
+
+cat("Tests terminés avec succès !\n")
+
+# ==============================================================================
+# 3. MISE EN FORME DES RÉSULTATS (DATAFRAME RÉSUMÉ)
+# ==============================================================================
+# Conversion de la matrice en data.frame de paires pour une analyse plus facile
+results_df <- data.frame()
+
+for (i in 1:(num_players - 1)) {
+  for (j in (i + 1):num_players) {
+    results_df <- rbind(results_df, data.frame(
+      Player_1 = player_names[i],
+      Player_2 = player_names[j],
+      p_value  = p_matrix[i, j]
+    ))
+  }
+}
+
+
+# Tri par p-valeur croissante (les joueurs les plus différents en premier)
+results_df <- results_df[order(results_df$p_value), ]
+
+# Affichage des 10 paires les plus différentes
+head(results_df, 10)
+```
+
+```{r}
+# ==============================================================================
+# EXTRACTION DES PAIRES NON SIGNIFICATIVES (processus de tirs similaires)
+# ==============================================================================
+alpha <- 0.05
+
+# 1. Filtrage sur les p-valeurs brutes
+paires_similaires <- subset(results_df, p_value > alpha)
+
+# Affichage du nombre total de paires similaires trouvées
+cat(sprintf("Nombre total de paires de joueurs comparées : %d\n", nrow(results_df)))
+cat(sprintf("Nombre de paires non significatives (p > %.2f) : %d (%.1f%%)\n", 
+            alpha, nrow(paires_similaires), 100 * nrow(paires_similaires) / nrow(results_df)))
+cat(sprintf("Nombre de paires non significatives après correction BH (p_adj > %.2f) : %d (%.1f%%)\n\n", 
+            alpha, nrow(paires_similaires_adj), 100 * nrow(paires_similaires_adj) / nrow(results_df)))
+
+# Affichage des premières paires avec les p-valeurs les plus élevées (les plus similaires)
+paires_similaires <- paires_similaires[order(-paires_similaires$p_value), ]
+head(paires_similaires, 15)
+```
+
+```{r}
+#install.packages("igraph")
+library(igraph)
+
+# Création du réseau des joueurs ayant des processus identiques
+adj_matrix <- p_matrix > alpha
+diag(adj_matrix) <- 0
+
+graph_simil <- graph_from_adjacency_matrix(adj_matrix, mode = "undirected")
+
+# Visualisation simple du réseau
+plot(graph_simil, 
+     vertex.size = 4, asp = 0,
+     vertex.label.cex = 0.6,
+     vertex.color = "yellow")
 ```
