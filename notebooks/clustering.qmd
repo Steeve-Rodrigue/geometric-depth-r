@@ -534,7 +534,7 @@ cah_core <- hclust(as.dist(D), method = "ward.D2")
 plot(cah_core, main = "Dendrogramme des joueurs", xlab = "Joueurs", sub = "")
 
 # Découpage en 3 clusters
-cluster_assignments <- cutree(cah_core, k = 4)
+cluster_assignments <- cutree(cah_core, k = 3)
 names(cluster_assignments) <- names(data_by_player)
 
 ```
@@ -542,13 +542,13 @@ names(cluster_assignments) <- names(data_by_player)
 ```{r}
 set.seed(42)
 dev.new()
-#rownames(dists) <- names(data_by_player)
-#D <- dists
+rownames(dists) <- names(data_by_player)
+D <- dists
 
 #rownames(D_joueur) <- names(data_by_player)
-D <- D_joueur
-#cluster <- cluster_assignments
-cluster <- partition_finale
+#D <- D_joueur
+cluster <- cluster_assignments
+#cluster <- partition_finale
 proj_mds <- cmdscale(D, k = 2)
 plot_df <- data.frame(
   Dim1    = proj_mds[, 1],

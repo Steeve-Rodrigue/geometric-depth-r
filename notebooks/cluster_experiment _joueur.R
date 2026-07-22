@@ -47,7 +47,7 @@
   # --- paramètres ----------------------------------------------------------------
   nDirs     <- 250
   lambda    <- 0.6
-  nClusters <- 5
+  nClusters <- 3
   M         <- 6
   L         <- 5
   Tval      <- 0
@@ -238,7 +238,7 @@ print(table(labels))
   iter <- 1
   withoutMoves <- 0
   movesThisStep <- FALSE
-  temp <- -0.5
+  temp <- -1
   Tval <- 0
 
   while (TRUE) {
