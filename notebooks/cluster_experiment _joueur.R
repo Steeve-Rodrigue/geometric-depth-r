@@ -30,7 +30,7 @@
       parConst1 = -2,
       parConst2 = 5
     )
-    seuil_matchs <- quantile(prof_matchs, probs = 0.4, na.rm = TRUE)
+    seuil_matchs <- quantile(prof_matchs, probs = 0.0, na.rm = TRUE)
     joueur_data[prof_matchs >= seuil_matchs]
   })
   names(data_typic_made_all_players) <- names(data_made_by_player)

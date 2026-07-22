@@ -1,0 +1,598 @@
+%!PS-Adobe-3.0 EPSF-3.0
+%%DocumentNeededResources: font Helvetica
+%%+ font Helvetica-Bold
+%%+ font Helvetica-Oblique
+%%+ font Helvetica-BoldOblique
+%%+ font Symbol
+%%Title: R Graphics Output
+%%Creator: R Software
+%%Pages: (atend)
+%%BoundingBox: 0 0 1218 587
+%%EndComments
+%%BeginProlog
+/bp  { gs sRGB gs } def
+% begin .ps.prolog
+/gs  { gsave } bind def
+/gr  { grestore } bind def
+/ep  { showpage gr gr } bind def
+/m   { moveto } bind def
+/l  { rlineto } bind def
+/np  { newpath } bind def
+/cp  { closepath } bind def
+/f   { fill } bind def
+/o   { stroke } bind def
+/c   { newpath 0 360 arc } bind def
+/r   { 4 2 roll moveto 1 copy 3 -1 roll exch 0 exch rlineto 0 rlineto -1 mul 0 exch rlineto closepath } bind def
+/p1  { stroke } bind def
+/p2  { gsave bg fill grestore newpath } bind def
+/p3  { gsave bg fill grestore stroke } bind def
+/p6  { gsave bg eofill grestore newpath } bind def
+/p7  { gsave bg eofill grestore stroke } bind def
+/t   { 5 -2 roll moveto gsave rotate
+       1 index stringwidth pop
+       mul neg 0 rmoveto show grestore } bind def
+/ta  { 4 -2 roll moveto gsave rotate show } bind def
+/tb  { 2 -1 roll 0 rmoveto show } bind def
+/cl  { grestore gsave newpath 3 index 3 index moveto 1 index
+       4 -1 roll lineto  exch 1 index lineto lineto
+       closepath clip newpath } bind def
+/rgb { setrgbcolor } bind def
+/s   { scalefont setfont } bind def
+% end   .ps.prolog
+/sRGB { [ /CIEBasedABC
+          << /DecodeLMN
+               [ { dup 0.03928 le
+                        {12.92321 div}
+                        {0.055 add 1.055 div 2.4 exp }
+                     ifelse
+                 } bind dup dup
+               ]
+             /MatrixLMN [0.412457 0.212673 0.019334
+                         0.357576 0.715152 0.119192
+                         0.180437 0.072175 0.950301]
+             /WhitePoint [0.9505 1.0 1.0890]
+           >>
+         ] setcolorspace } bind def
+/srgb { setcolor } bind def
+%%IncludeResource: font Helvetica
+/Helvetica findfont
+dup length dict begin
+  {1 index /FID ne {def} {pop pop} ifelse} forall
+  /Encoding ISOLatin1Encoding def
+  currentdict
+  end
+/Font1 exch definefont pop
+%%IncludeResource: font Helvetica-Bold
+/Helvetica-Bold findfont
+dup length dict begin
+  {1 index /FID ne {def} {pop pop} ifelse} forall
+  /Encoding ISOLatin1Encoding def
+  currentdict
+  end
+/Font2 exch definefont pop
+%%IncludeResource: font Helvetica-Oblique
+/Helvetica-Oblique findfont
+dup length dict begin
+  {1 index /FID ne {def} {pop pop} ifelse} forall
+  /Encoding ISOLatin1Encoding def
+  currentdict
+  end
+/Font3 exch definefont pop
+%%IncludeResource: font Helvetica-BoldOblique
+/Helvetica-BoldOblique findfont
+dup length dict begin
+  {1 index /FID ne {def} {pop pop} ifelse} forall
+  /Encoding ISOLatin1Encoding def
+  currentdict
+  end
+/Font4 exch definefont pop
+%%IncludeResource: font Symbol
+/Symbol findfont
+dup length dict begin
+  {1 index /FID ne {def} {pop pop} ifelse} forall
+  currentdict
+  end
+/Font5 exch definefont pop
+%%EndProlog
+%%Page: 1 1
+bp
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+/bg { 1 1 1 srgb } def
+1 1 1 srgb
+1.07 setlinewidth
+[] 0 setdash
+1 setlinecap
+1 setlinejoin
+10.00 setmiterlimit
+0.00 0.00 1218.00 587.25 r p3
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+57.65 32.45 1156.41 563.96 cl
+/bg { 1 1 1 srgb } def
+57.65 32.45 1098.76 531.51 r p2
+0.7020 0.7020 0.7020 srgb
+0.64 setlinewidth
+[ 0.64 1.92] 0 setdash
+0 setlinecap
+1 setlinejoin
+10.00 setmiterlimit
+np
+57.65 83.42 m
+1098.76 0 l
+o
+np
+57.65 203.10 m
+1098.76 0 l
+o
+np
+57.65 322.77 m
+1098.76 0 l
+o
+np
+57.65 442.44 m
+1098.76 0 l
+o
+np
+57.65 562.11 m
+1098.76 0 l
+o
+np
+159.54 32.45 m
+0 531.51 l
+o
+np
+451.42 32.45 m
+0 531.51 l
+o
+np
+743.30 32.45 m
+0 531.51 l
+o
+np
+1035.18 32.45 m
+0 531.51 l
+o
+np
+57.65 143.26 m
+1098.76 0 l
+o
+np
+57.65 262.93 m
+1098.76 0 l
+o
+np
+57.65 382.60 m
+1098.76 0 l
+o
+np
+57.65 502.28 m
+1098.76 0 l
+o
+np
+305.48 32.45 m
+0 531.51 l
+o
+np
+597.36 32.45 m
+0 531.51 l
+o
+np
+889.24 32.45 m
+0 531.51 l
+o
+0.3020 0.6863 0.2902 srgb
+1.07 setlinewidth
+[] 0 setdash
+1 setlinecap
+np
+692.05 230.11 m
+-8.71 4.48 l
+o
+np
+666.37 267.98 m
+-18.34 -17.22 l
+o
+np
+593.53 349.23 m
+2.92 -16.42 l
+o
+np
+664.62 311.05 m
+-38.99 -9.44 l
+o
+0.2157 0.4941 0.7216 srgb
+np
+549.04 279.69 m
+11.51 -6.66 l
+o
+0.3020 0.6863 0.2902 srgb
+np
+608.94 229.82 m
+1.63 13.81 l
+o
+np
+535.72 298.75 m
+46.67 -1.04 l
+o
+np
+685.47 241.79 m
+-21.10 6.24 l
+o
+0.2157 0.4941 0.7216 srgb
+np
+510.35 241.17 m
+30.03 -8.28 l
+o
+0.3020 0.6863 0.2902 srgb
+np
+613.85 228.77 m
+-6.08 7.25 l
+o
+np
+594.86 265.91 m
+9.98 -10.41 l
+o
+0.2157 0.4941 0.7216 srgb
+np
+539.68 255.98 m
+42.24 -9.51 l
+o
+/Font1 findfont 9 s
+0.8941 0.1020 0.1098 srgb
+878.53 411.93 (Bam Adeba) 0 ta
+-0.270 (y) tb
+-0.180 (o) tb gr
+0.2157 0.4941 0.7216 srgb
+406.70 221.09 (Stephen Curr) 0 ta
+0.270 (y) tb gr
+381.34 295.18 (Kla) 0 ta
+-0.270 (y Thompson) tb gr
+0.3020 0.6863 0.2902 srgb
+676.48 221.85 (Dr) 0 ta
+-0.090 (a) tb
+-0.270 (ymond Green) tb gr
+0.2157 0.4941 0.7216 srgb
+99.77 70.50 (K) 0 ta
+-0.450 (yle K) tb
+-0.360 (or) tb
+0.270 (v) tb
+-0.225 (er) tb gr
+515.68 238.73 (J) 0 ta
+-0.180 (ames Harden) tb gr
+544.91 252.57 (Ev) 0 ta
+-0.225 (an F) tb
+-0.270 (our) tb
+0.225 (nier) tb gr
+0.3020 0.6863 0.2902 srgb
+690.71 344.93 (Anthon) 0 ta
+-0.135 (y Da) tb
+-0.180 (vis) tb gr
+0.8941 0.1020 0.1098 srgb
+882.26 282.76 (Giannis Antetok) 0 ta
+-0.180 (ounmpo) tb gr
+1067.01 123.27 (J) 0 ta
+-0.180 (arrett Allen) tb gr
+0.3020 0.6863 0.2902 srgb
+668.10 265.80 (Ale) 0 ta
+-0.270 (x Car) tb
+0.135 (uso) tb gr
+0.2157 0.4941 0.7216 srgb
+522.16 391.04 (K) 0 ta
+-0.360 (e) tb
+-0.270 (vin Dur) tb
+-0.090 (ant) tb gr
+0.3020 0.6863 0.2902 srgb
+689.04 252.17 (LeBron J) 0 ta
+-0.180 (ames) tb gr
+720.68 328.94 (Joel Embiid) .5 0 t
+570.01 351.03 (T) 0 ta
+-1.080 (r) tb
+-0.090 (ae Y) tb
+-1.260 (oung) tb gr
+0.2157 0.4941 0.7216 srgb
+614.80 209.63 (Damian Lillard) .5 0 t
+0.3020 0.6863 0.2902 srgb
+666.29 308.24 (Shai Gilgeous-Ale) 0 ta
+-0.270 (xander) tb gr
+634.25 322.42 (De'Aaron F) 0 ta
+-0.270 (o) tb
+-0.270 (x) tb gr
+0.2157 0.4941 0.7216 srgb
+516.31 281.49 (K) 0 ta
+-0.450 (yr) tb
+0.135 (ie Ir) tb
+0.270 (ving) tb gr
+467.37 267.22 (Anf) 0 ta
+-0.270 (er) tb
+0.225 (nee Simons) tb gr
+476.76 207.26 (Buddy Hield) .5 0 t
+520.89 351.34 (CJ McCollum) .5 0 t
+0.3020 0.6863 0.2902 srgb
+582.84 435.79 (DeMar DeRozan) .5 0 t
+658.37 176.95 (Zach LaVine) .5 0 t
+607.73 254.05 (J) 0 ta
+-0.180 (a) tb
+-0.270 (ylen Bro) tb
+-0.135 (wn) tb gr
+556.25 225.05 (Br) 0 ta
+-0.090 (adle) tb
+-0.180 (y Beal) tb gr
+465.08 295.52 (Dono) 0 ta
+-0.135 (v) tb
+-0.225 (an Mitchell) tb gr
+530.73 319.43 (De) 0 ta
+-0.270 (vin Book) tb
+-0.180 (er) tb gr
+525.47 337.08 (T) 0 ta
+-1.080 (yus Jones) tb gr
+605.73 308.36 (Derr) 0 ta
+0.135 (ick White) tb gr
+0.2157 0.4941 0.7216 srgb
+537.90 160.37 (Fred V) 0 ta
+-0.630 (anVleet) tb gr
+474.17 323.34 (Mik) 0 ta
+-0.180 (e Conle) tb
+-0.180 (y) tb gr
+0.3020 0.6863 0.2902 srgb
+687.13 237.77 (Russell W) 0 ta
+-0.270 (estbrook) tb gr
+0.2157 0.4941 0.7216 srgb
+355.78 544.23 (Chr) 0 ta
+0.135 (is P) tb
+-0.360 (aul) tb gr
+0.3020 0.6863 0.2902 srgb
+657.26 294.39 (Jr) 0 ta
+0.135 (ue Holida) tb
+-0.270 (y) tb gr
+541.15 304.13 (J) 0 ta
+-0.180 (alen Br) tb
+0.135 (unson) tb gr
+612.96 380.46 (Br) 0 ta
+-0.090 (andon Ingr) tb
+-0.090 (am) tb gr
+655.83 280.31 (Jimm) 0 ta
+-0.135 (y Butler) tb gr
+0.2157 0.4941 0.7216 srgb
+458.21 238.52 (P) 0 ta
+-0.360 (aul George) tb gr
+0.3020 0.6863 0.2902 srgb
+614.88 223.39 (J) 0 ta
+-0.180 (a) tb
+-0.270 (yson T) tb
+-1.080 (atum) tb gr
+613.82 87.49 (Donte DiVincenz) 0 ta
+-0.135 (o) tb gr
+0.2157 0.4941 0.7216 srgb
+476.87 193.38 (Gr) 0 ta
+-0.090 (a) tb
+-0.270 (yson Allen) tb gr
+382.41 356.93 (Luk) 0 ta
+-0.180 (e K) tb
+-0.360 (ennard) tb gr
+424.15 281.30 (Tim Harda) 0 ta
+-0.180 (w) tb
+-0.135 (a) tb
+-0.270 (y Jr) tb
+-0.450 (.) tb gr
+512.36 211.04 (K) 0 ta
+-0.360 (e) tb
+-0.270 (vin Huer) tb
+0.360 (ter) tb gr
+0.3020 0.6863 0.2902 srgb
+633.14 138.97 (Nor) 0 ta
+0.225 (man P) tb
+-0.450 (o) tb
+-0.135 (w) tb
+-0.090 (ell) tb gr
+623.20 342.46 (Car) 0 ta
+0.135 (is LeV) tb
+-0.720 (er) tb
+0.360 (t) tb gr
+0.2157 0.4941 0.7216 srgb
+428.13 175.05 (K) 0 ta
+-0.360 (enta) tb
+-0.180 (vious Caldw) tb
+-0.090 (ell-P) tb
+-0.450 (ope) tb gr
+0.3020 0.6863 0.2902 srgb
+560.61 117.76 (Josh Har) 0 ta
+0.360 (t) tb gr
+0.2157 0.4941 0.7216 srgb
+474.75 224.40 (T) 0 ta
+-1.080 (err) tb
+0.270 (y Rozier) tb gr
+564.88 181.87 (Malik Monk) .5 0 t
+0.3020 0.6863 0.2902 srgb
+593.49 267.71 (Dillon Brooks) .5 0 t
+594.61 281.49 (T) 0 ta
+-1.080 (obias Harr) tb
+0.135 (is) tb gr
+0.2157 0.4941 0.7216 srgb
+552.24 195.65 (Harr) 0 ta
+0.135 (ison Bar) tb
+0.225 (nes) tb gr
+470.06 253.12 (Gordon Ha) 0 ta
+-0.270 (yw) tb
+-0.135 (ard) tb gr
+0.3020 0.6863 0.2902 srgb
+652.44 61.00 (OG An) 0 ta
+-0.090 (unob) tb
+-0.180 (y) tb gr
+614.87 237.31 (Andre) 0 ta
+-0.180 (w Wiggins) tb gr
+0.2157 0.4941 0.7216 srgb
+439.84 309.23 (Khr) 0 ta
+0.135 (is Middleton) tb gr
+0.3020 0.6863 0.2902 srgb
+752.51 224.03 (P) 0 ta
+-0.360 (ascal Siakam) tb gr
+598.49 103.32 (Mikal Br) 0 ta
+0.135 (idges) tb gr
+0 0 0 srgb
+57.65 32.45 1098.76 531.51 r p1
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+/Font1 findfont 9 s
+0.3020 0.3020 0.3020 srgb
+52.72 140.03 (-0.00025) 1 0 t
+52.72 259.70 (0.00000) 1 0 t
+52.72 379.37 (0.00025) 1 0 t
+52.72 499.05 (0.00050) 1 0 t
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.2000 0.2000 0.2000 srgb
+1.07 setlinewidth
+[] 0 setdash
+0 setlinecap
+1 setlinejoin
+10.00 setmiterlimit
+np
+54.91 143.26 m
+2.74 0 l
+o
+np
+54.91 262.93 m
+2.74 0 l
+o
+np
+54.91 382.60 m
+2.74 0 l
+o
+np
+54.91 502.28 m
+2.74 0 l
+o
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.2000 0.2000 0.2000 srgb
+1.07 setlinewidth
+[] 0 setdash
+0 setlinecap
+1 setlinejoin
+10.00 setmiterlimit
+np
+305.48 29.71 m
+0 2.74 l
+o
+np
+597.36 29.71 m
+0 2.74 l
+o
+np
+889.24 29.71 m
+0 2.74 l
+o
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+/Font1 findfont 9 s
+0.3020 0.3020 0.3020 srgb
+305.48 21.06 (-0.002) .5 0 t
+597.36 21.06 (0.000) .5 0 t
+889.24 21.06 (0.002) .5 0 t
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+/Font1 findfont 11 s
+0 0 0 srgb
+607.03 7.88 (Dimension 1) .5 0 t
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+/Font1 findfont 11 s
+0 0 0 srgb
+13.38 298.20 (Dimension  2) .5 90 t
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+/bg { 1 1 1 srgb } def
+1167.36 258.66 45.16 79.08 r p2
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+/Font1 findfont 11 s
+0 0 0 srgb
+1172.84 322.91 (Cluster) 0 0 t
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+/bg { 1 1 1 srgb } def
+1172.84 298.70 17.28 17.28 r p2
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+/bg { 1 1 1 srgb } def
+1172.84 281.42 17.28 17.28 r p2
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+/bg { 1 1 1 srgb } def
+1172.84 264.14 17.28 17.28 r p2
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+/Font1 findfont 9 s
+0 0 0 srgb
+1195.60 304.11 (1) 0 0 t
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+/Font1 findfont 9 s
+0 0 0 srgb
+1195.60 286.83 (2) 0 0 t
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+/Font1 findfont 9 s
+0 0 0 srgb
+1195.60 269.55 (3) 0 0 t
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+/Font1 findfont 13 s
+0 0 0 srgb
+57.65 572.44 (T) 0 ta
+-1.560 (ypologie des joueurs) tb gr
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+0.00 0.00 1218.00 587.25 cl
+ep
+%%Trailer
+%%Pages: 1
+%%EOF

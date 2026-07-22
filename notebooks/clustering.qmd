@@ -530,7 +530,7 @@ ggplot(mds_df, aes(x = Dim1, y = Dim2, label = Joueur)) +
 ```{r}
 dev.new()
 # Classification Ascendante Hiérarchique (méthode de Ward)
-cah_core <- hclust(as.dist(D), method = "ward.D2")
+cah_core <- hclust(as.dist(D_joueur), method = "ward.D2")
 plot(cah_core, main = "Dendrogramme des joueurs", xlab = "Joueurs", sub = "")
 
 # Découpage en 3 clusters
@@ -540,15 +540,169 @@ names(cluster_assignments) <- names(data_by_player)
 ```
 
 ```{r}
+for (m in c("ward.D2","average","complete","single","mcquitty")) {
+  hc_m <- hclust(as.dist(D_joueur), method = m)
+  cat(m, ":", cor(as.dist(D_joueur), cophenetic(hc_m)), "\n")
+}
+```
+
+```{r}
+
+hc <- hclust(as.dist(D_joueur), method = "ward.D2")
+
+# ------------------------------------------------------------
+# 1) Barplot des hauteurs de fusion
+# ------------------------------------------------------------
+# hc$height : hauteur de chaque fusion, dans l'ordre croissant.
+# On les relit en ordre DÉCROISSANT : la première barre correspond
+# à la toute dernière fusion (celle qui regroupe tout en 1 cluster),
+# la n-ième barre à l'agrégation qui produirait n+1 clusters.
+h <- sort(hc$height, decreasing = TRUE)
+
+png("barplot_hauteurs_fusion.png", width = 1400, height = 900, res = 150)
+par(mar = c(4.5, 4.5, 3, 1))
+bp <- barplot(h[1:15], names.arg = 1:15,
+              xlab = "Rang de la fusion (1 = dernière fusion, donne 2 clusters)",
+              ylab = "Hauteur de fusion (gain d'inertie Ward)",
+              main = "Hauteurs de fusion - recherche du saut",
+              col = "#2E86AB", border = NA)
+# on superpose les sauts relatifs (delta) pour repérer le coude
+deltas <- -diff(h[1:15])
+lines(bp, c(deltas, NA) * 1, type = "o", col = "#E4572E", pch = 19)
+legend("topright", legend = c("Hauteur de fusion", "Saut vers la fusion suivante"),
+       col = c("#2E86AB", "#E4572E"), pch = c(15, 19), bty = "n")
+dev.off()
+
+cat("Hauteurs des 10 dernières fusions (K correspondant = rang+1) :\n")
+print(round(h[1:10], 3))
+cat("\nSauts relatifs (h[k] - h[k+1]) :\n")
+print(round(diff(h[1:10]) * -1, 3))
+# -> chercher le plus grand saut : s'il est entre le rang 3 et 4 par exemple,
+# cela suggère de couper à K=4 (juste après ce saut).
+
+# ------------------------------------------------------------
+# 2) Silhouette et gap statistic pour K = 2..8
+# ------------------------------------------------------------
+# silhouette "maison" (déjà utilisée précédemment, pas de package requis)
+sil <- function(cl, D){
+  Dm <- as.matrix(D); n <- nrow(Dm); s <- numeric(n)
+  for (i in 1:n){
+    a <- mean(Dm[i, cl == cl[i] & seq_len(n) != i])
+    b <- min(sapply(setdiff(unique(cl), cl[i]), function(k) mean(Dm[i, cl == k])))
+    s[i] <- (b - a) / max(a, b)
+  }
+  s
+}
+
+Ks <- 2:8
+sil_moy <- sapply(Ks, function(k) mean(sil(cutree(hc, k), d)))
+
+cat("\nSilhouette moyenne par K (Ward) :\n")
+print(round(setNames(sil_moy, Ks), 3))
+
+# Gap statistic (Tibshirani et al., 2001), implémentation avec cluster::clusGap
+# clusGap a besoin d'une fonction de clustering FUNcluster(x, k) -> $cluster
+# Le package "cluster" est un package "recommended", normalement déjà
+# installé avec R (ex. via r-cran-cluster sous Ubuntu/Debian, ou
+# install.packages("cluster") si besoin et connexion internet disponible).
+if (!requireNamespace("cluster", quietly = TRUE)) {
+  stop("Le package 'cluster' n'est pas installe. Installez-le (install.packages('cluster')) ",
+       "ou via votre gestionnaire de paquets systeme (r-cran-cluster).")
+}
+library(cluster)
+
+hclust_ward_fun <- function(x, k){
+  hc_i <- hclust(dist(x), method = "ward.D2")
+  list(cluster = cutree(hc_i, k))
+}
+
+set.seed(42)
+gap <- clusGap(X, FUNcluster = hclust_ward_fun, K.max = 8, B = 200)
+cat("\nGap statistic (Ward) :\n")
+print(gap, method = "Tibs2001SEmax")
+
+png("silhouette_gap_K.png", width = 1600, height = 800, res = 150)
+par(mfrow = c(1, 2), mar = c(4.5, 4.5, 3, 1))
+plot(Ks, sil_moy, type = "b", pch = 19, col = "#2E86AB",
+     xlab = "Nombre de clusters K", ylab = "Silhouette moyenne",
+     main = "Silhouette (Ward)")
+plot(gap, main = "Gap statistic (Ward)")
+dev.off()
+
+# K retenu = celui qui maximise la silhouette et/ou respecte la règle
+# du gap ("plus petit K tel que Gap(K) >= Gap(K+1) - SE(K+1)")
+K_best_sil <- Ks[which.max(sil_moy)]
+K_best_gap <- maxSE(gap$Tab[, "gap"], gap$Tab[, "SE.sim"], method = "Tibs2001SEmax")
+cat("\nK optimal selon silhouette :", K_best_sil, "\n")
+cat("K optimal selon gap statistic :", K_best_gap, "\n")
+
+# On retient ici K=4 pour rester comparable aux deux partitions DDclust
+# (à ajuster si les indices ci-dessus pointent clairement ailleurs)
+K_choisi <- 4
+cl_ward <- cutree(hc, k = K_choisi)
+
+# ------------------------------------------------------------
+# 3) ARI entre la coupe Ward retenue et partition_finale (DDclust)
+# ------------------------------------------------------------
+stopifnot(all(names(cluster_assignments) == feats$player))
+cl_ddclust <- as.integer(partition_finale)
+
+ari_manual <- function(cl1, cl2){
+  n <- length(cl1)
+  tab <- table(cl1, cl2)
+  c2 <- function(x) sum(choose(x, 2))
+  a <- c2(tab)
+  expected <- c2(rowSums(tab)) * c2(colSums(tab)) / choose(n, 2)
+  maxidx <- 0.5 * (c2(rowSums(tab)) + c2(colSums(tab)))
+  (a - expected) / (maxidx - expected)
+}
+
+cat("\nTable de contingence Ward (K=", K_choisi, ") vs DDclust (partition_finale) :\n", sep = "")
+print(table(cl_ward, cl_ddclust))
+
+cat("\nARI entre coupe Ward et partition_finale :",
+    round(ari_manual(cl_ward, cl_ddclust), 3), "\n")
+
+# Pour référence, avec le package mclust (si disponible) :
+if (requireNamespace("mclust", quietly = TRUE)) {
+  cat("ARI (mclust::adjustedRandIndex) :",
+      round(mclust::adjustedRandIndex(cl_ward, cl_ddclust), 3), "\n")
+}
+```
+
+```{r}
+#X <- scale(feats[, c("rim","short_mid","long_mid","three","mean_dist")])
+#d <- dist(X)
+
+d <- as.dist(D_joueur)
+
+hc_w <- hclust(d, method = "ward.D2")
+hc_a <- hclust(d, method = "average")
+
+cl_w <- cutree(hc_w, k = 4)
+cl_a <- cutree(hc_a, k = 4)
+
+table(cl_w)   # tailles des clusters Ward
+table(cl_a)# tailles des clusters average — chaînage éventuel ?
+
+# silhouette de chaque coupe (fonction déjà définie plus haut)
+mean(sil(cl_w, d))
+mean(sil(cl_a, d), na.rm = T)
+
+# accord entre les deux linkages
+# (via le calcul manuel d'ARI qu'on a utilisé plus tôt, ou library(mclust)::adjustedRandIndex)
+```
+
+```{r}
 set.seed(42)
 dev.new()
 rownames(dists) <- names(data_by_player)
 D <- dists
 
-#rownames(D_joueur) <- names(data_by_player)
+rownames(D_joueur) <- names(data_by_player)
 #D <- D_joueur
-cluster <- cluster_assignments
-#cluster <- partition_finale
+#cluster <- cluster_assignments
+cluster <- partition_finale
 proj_mds <- cmdscale(D, k = 2)
 plot_df <- data.frame(
   Dim1    = proj_mds[, 1],
