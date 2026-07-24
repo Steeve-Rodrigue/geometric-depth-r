@@ -141,7 +141,8 @@ power_no_pool_ref_perm <- sapply(delta_grid, function(d) {
 
 
 
-#load("/home/ensai/Documents/Repositories_Git/geometric-depth-r/power_results_sc1.RData")
+load("/home/ensai/Documents/Repositories_Git/geometric-depth-r/power_results_sc1.RData")
+
 #load("/home/ensai/Documents/Repositories_Git/geometric-depth-r/power_ddplotref_perm_sc1.RData")
 
 # ==============================================================================
@@ -194,16 +195,16 @@ abline(h = 0.05, lty = 2, col = "black", lwd = 1)
 grid()
 
 legend("topleft",
-       legend = c("Wilcoxon (Tukey)",
-                  "Pool KS",
-                  "No Pool Ref Fix",
-                  "No Pool Ref Perm",
-                  "ddplot_bootstrap_fixed_ref",
-                  "No Pool Two Test Ref Fix"),
+       legend = c("Wilcoxon–Mann–Whitney",
+                  "KS–groupé",
+                  "KS-pop-fixes",
+                  "KS–pop–dynamiques",
+                  "Reg-DDplot",
+                  "KS–pop–croisées"),
        col = couleurs,
        lty = types_ligne,
        lwd = 2,
-       cex = 0.8,
+       cex = 0.6,
        bty = "n")
 
 # save(
@@ -358,7 +359,7 @@ power_no_pool_ref_perm <- sapply(delta_grid, function(d) {
 
 
 
-#load("/home/ensai/Documents/Repositories_Git/geometric-depth-r/power_results_sc2.RData")
+load("/home/ensai/Documents/Repositories_Git/geometric-depth-r/power_results_sc2.RData")
 #load("/home/ensai/Documents/Repositories_Git/geometric-depth-r/power_ddplotref_perm_sc2.RData")
 
 # ==============================================================================
@@ -411,18 +412,17 @@ abline(h = 0.05, lty = 2, col = "black", lwd = 1)
 grid()
 
 legend("topleft",
-       legend = c("Wilcoxon (Tukey)",
-                  "Pool KS",
-                  "No Pool Ref Fix",
-                  "No Pool Ref Perm",
-                  "ddplot_bootstrap_fixed_ref",
-                  "No Pool Two Test Ref Fix"),
+       legend = c("Wilcoxon–Mann–Whitney",
+                  "KS–groupé",
+                  "KS-pop-fixes",
+                  "KS–pop–dynamiques",
+                  "Reg-DDplot",
+                  "KS–pop–croisées"),
        col = couleurs,
        lty = types_ligne,
        lwd = 2,
-       cex = 0.8,
+       cex = 0.6,
        bty = "n")
-
 # save(
 #   delta_grid,
 #   power_wil_test,

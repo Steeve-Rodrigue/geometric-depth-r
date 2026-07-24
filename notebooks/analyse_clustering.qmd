@@ -315,9 +315,9 @@ dev.off()
 # ------------------------------------------------------------
 # 6) Comparaison avec la coupe CAH (Ward, K=3 retenu precedemment)
 # ------------------------------------------------------------
-load("doc.RData")
-hc <- hclust(d, method = "ward.D2")
-cl_ward3 <- cutree(hc, k = 3)
+
+cl1<- cluster_assignments
+cl2 <- partition_finale
  
 ari_manual <- function(cl1, cl2){
 n <- length(cl1)
@@ -329,7 +329,26 @@ maxidx <- 0.5 * (c2(rowSums(tab)) + c2(colSums(tab)))
 (a - expected) / (maxidx - expected)
 }
  
-cat("\nARI entre DDclust (K retenu =", K_retenu, ") et CAH-Ward (K=3) :",
-round(ari_manual(cl_final, cl_ward3), 3), "\n")
+cat("\nARI entre DDclust (K retenu =", 3, ") et CAH-Ward (K=3) :",
+round(ari_manual(cl1, cl2), 3), "\n")
+```
+
+
+```{r}
+# --- données -----------------------------------------------------------------
+K_vals  <- 2:5
+critere <- c(0.34, 0.30, 0.20, 0.16)
+
+# --- figure ------------------------------------------------------------------
+par(mfrow = c(1, 1), mar = c(4.5, 4.5, 3, 1))
+
+plot(K_vals, critere, type = "b", pch = 19, col = "#2E86AB", lwd = 2,
+     xlab = "Nombre de clusters K",
+     ylab = "Critère combiné (Silhouette / ReD)",
+     main = "Évolution du critère en fonction de K",
+     ylim = c(0.1, 0.4))
+grid()
+points(3, critere[2], col = "#E4572E", pch = 19, cex = 1.8)
+text(3, critere[2], labels = " K = 3", pos = 4, col = "#E4572E", font = 2)
 ```
 

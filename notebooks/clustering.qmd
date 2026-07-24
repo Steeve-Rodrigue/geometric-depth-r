@@ -155,7 +155,7 @@ data_typic_made_all_players <- lapply(data_made_by_player, function(joueur_data)
     parConst1 = -2,
     parConst2 = 5
   )
-  seuil_matchs <- quantile(prof_matchs, probs = 0.0, na.rm = TRUE)
+  seuil_matchs <- quantile(prof_matchs, probs = 0.4, na.rm = TRUE)
   joueur_filtre <- joueur_data[prof_matchs >= seuil_matchs]
   return(joueur_filtre)
 })
@@ -208,7 +208,7 @@ p2 <- plot_season2(shots_made_by_player[[8]])
 ```{r}
 library(spatstat)
 set.seed(42)
-evaluer_distance <- function(data_joueur_A, data_joueur_B, sigma = 3, fenetre = owin(c(-25, 25), c(-47.1, 0)) ) {
+evaluer_distance <- function(data_joueur_A, data_joueur_B, sigma = 2, fenetre = owin(c(-25, 25), c(-47.1, 0)) ) {
   
   ppp_A <- ppp(x = data_joueur_A$LOC_X, y = data_joueur_A$LOC_Y, window = fenetre)
   ppp_B <- ppp(x = data_joueur_B$LOC_X, y = data_joueur_B$LOC_Y, window = fenetre)
@@ -233,7 +233,7 @@ evaluer_distance(pl_2, pl_1)
 ```{r}
 library(spatstat)
 
-evaluer_distance <- function(data_joueur_A, data_joueur_B, sigma = 3, fenetre = owin(c(-25, 25), c(-47.1, 0)) ) {
+evaluer_distance <- function(data_joueur_A, data_joueur_B, sigma = 2, fenetre = owin(c(-25, 25), c(-47.1, 0)) ) {
   
   ppp_A <- ppp(x = data_joueur_A$LOC_X, y = data_joueur_A$LOC_Y, window = fenetre)
   ppp_B <- ppp(x = data_joueur_B$LOC_X, y = data_joueur_B$LOC_Y, window = fenetre)
@@ -356,7 +356,6 @@ for(i in 1:n){
     dij <- evaluer_distance(
       shots_made_by_player[[i]],
       shots_made_by_player[[j]],
-      #sigma = 3
     )
     
     D_joueur[i, j] <- dij
@@ -503,7 +502,7 @@ mon_theme<- theme(
 library(ggplot2)
 library(ggrepel)
 
-#rownames(dists) <- names(data_by_player)
+rownames(dists) <- names(data_by_player)
 #D <- dists
 
 D <- D_joueur
@@ -529,8 +528,11 @@ ggplot(mds_df, aes(x = Dim1, y = Dim2, label = Joueur)) +
 
 ```{r}
 dev.new()
+#rownames(dists) <- names(data_by_player)
+#D <- dists
+D <- D_joueur
 # Classification Ascendante Hiérarchique (méthode de Ward)
-cah_core <- hclust(as.dist(D_joueur), method = "ward.D2")
+cah_core <- hclust(as.dist(D), method = "ward.D2")
 plot(cah_core, main = "Dendrogramme des joueurs", xlab = "Joueurs", sub = "")
 
 # Découpage en 3 clusters
@@ -696,11 +698,11 @@ mean(sil(cl_a, d), na.rm = T)
 ```{r}
 set.seed(42)
 dev.new()
-rownames(dists) <- names(data_by_player)
-D <- dists
+#rownames(dists) <- names(data_by_player)
+#D <- dists
 
 rownames(D_joueur) <- names(data_by_player)
-#D <- D_joueur
+D <- D_joueur
 #cluster <- cluster_assignments
 cluster <- partition_finale
 proj_mds <- cmdscale(D, k = 2)
@@ -721,6 +723,59 @@ ggplot(plot_df, aes(x = Dim1, y = Dim2, color = Cluster, label = Match)) +
     y = "Dimension  2"
   ) +
   scale_color_brewer(palette = "Set1") + mon_theme
+```
+
+```{r}
+library(ggplot2)
+library(ggrepel)
+
+set.seed(42)
+
+rownames(D_joueur) <- names(data_by_player)
+D <- D_joueur
+cluster <- cluster_assignments
+
+proj_mds <- cmdscale(D, k = 2)
+
+plot_df <- data.frame(
+  Dim1    = proj_mds[, 1],
+  Dim2    = proj_mds[, 2],
+  Match   = rownames(D),
+  Cluster = as.factor(cluster),
+  ID      = seq_len(nrow(D)) # Identifiant numérique de 1 à N
+)
+
+# Séparation des données : le 52ème vs le reste
+df_autres <- plot_df[plot_df$ID != 52, ]
+df_52     <- plot_df[plot_df$ID == 52, ]
+
+# Graphique final
+ggplot(plot_df, aes(x = Dim1, y = Dim2, color = Cluster)) +
+  geom_point(size = 3, alpha = 0.8) +
+  geom_text_repel(
+    data = df_autres, 
+    aes(label = Match), 
+    size = 3, 
+    max.overlaps = 5, 
+    show.legend = FALSE
+  ) +
+  geom_text_repel(
+    data = df_52, 
+    aes(label = Match), 
+    size = 3.2, 
+    fontface = "bold",
+    color = "green3",        
+    max.overlaps = 5,
+    force = 20, 
+    show.legend = FALSE
+  ) +
+  
+  labs(
+    x = "Dimension 1",
+    y = "Dimension 2"
+  ) +
+  scale_color_brewer(palette = "Set1") + 
+  mon_theme
 ```
 
 ```{r}
@@ -1375,8 +1430,9 @@ results %>%
 ```
 
 ```{r}
+partition <- cluster_assignments
 sil <- silhouette(partition,
-                  as.dist(D_matchs))
+                  as.dist(D_joueur))
 mean(sil[,3])
 
 
@@ -1447,6 +1503,7 @@ figure_clusters <- ddplot_nba(cluster_1, cluster_2, Ndirs = 250,
 ```
 
 ```{r}
+partition_finale <- cluster_assignments
 # --- joueur le plus profond par cluster --------------------------------------
 for (cl in sort(unique(partition_finale))) {
   
@@ -1482,18 +1539,13 @@ for (cl in sort(unique(partition_finale))) {
 ```{r}
 library(patchwork)
 
-p1 <- plot_season2(shots_made_by_player[[9]]) +
-  ggtitle("Cluster 1 - Giannis Antetokounmpo")
+p1 <- plot_season2(shots_made_by_player[[9]]) 
 
-p2 <- plot_season2(shots_made_by_player[[54]]) +
-  ggtitle("Cluster 2 - Tobias Harris")
+p2 <- plot_season2(shots_made_by_player[[32]]) 
+p3 <- plot_season2(shots_made_by_player[[35]])
 
-p3 <- plot_season2(shots_made_by_player[[3]]) +# 3Klay Thompson_44 Luke Kennard
-  ggtitle("Cluster 3 - Klay Thompson")
 
-p4 <- plot_season2(shots_made_by_player[[14]]) +
-  ggtitle("Cluster 4 - Joel Embiid")
 
-(p1 + p2 + p3 + p4) +
-  plot_layout(ncol = 2)
+(p1 + p2 + p3 ) +
+  plot_layout(ncol = 3)
 ```
