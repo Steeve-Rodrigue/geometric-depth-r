@@ -141,8 +141,7 @@ power_no_pool_ref_perm <- sapply(delta_grid, function(d) {
 
 
 
-load("/home/ensai/Documents/Repositories_Git/geometric-depth-r/power_results_sc1.RData")
-
+#load("/home/ensai/Documents/Repositories_Git/geometric-depth-r/power_results_sc1.RData")
 #load("/home/ensai/Documents/Repositories_Git/geometric-depth-r/power_ddplotref_perm_sc1.RData")
 
 # ==============================================================================
@@ -218,7 +217,7 @@ legend("topleft",
 #   file = "power_results_sc1.RData"
 # )
 
-save(power_ddplot_bootstrap_fixed_ref,file =  "power_ddplotref_perm_sc1.RData")
+#save(power_ddplot_bootstrap_fixed_ref,file =  "power_ddplotref_perm_sc1.RData")
 ```
 
 ### SCÉNARIO 2 : Gradient spatial (inhomogénéité)
@@ -359,7 +358,7 @@ power_no_pool_ref_perm <- sapply(delta_grid, function(d) {
 
 
 
-load("/home/ensai/Documents/Repositories_Git/geometric-depth-r/power_results_sc2.RData")
+#load("/home/ensai/Documents/Repositories_Git/geometric-depth-r/power_results_sc2.RData")
 #load("/home/ensai/Documents/Repositories_Git/geometric-depth-r/power_ddplotref_perm_sc2.RData")
 
 # ==============================================================================

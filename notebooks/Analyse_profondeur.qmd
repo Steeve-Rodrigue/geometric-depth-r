@@ -10,10 +10,14 @@ library(httr)
 library(jsonlite)
 library(dplyr)
 
-source("../R/nba-functions.R") #add echo = T to see more details
+source("../R/nba-functions.R") #add echo = T to see more details: verifier a configurer setwd()
 ```
 
+Usage : charger les dépendances et les fonctions utiles avant d’exécuter les analyses NBA.
+
 ## Test get_player_id
+
+Usage : vérifier que la fonction de recherche d’identifiant renvoie bien un résultat exploitable pour un joueur.
 
 ```{r}
 id <- get_player_id("stephen curry")
@@ -21,6 +25,10 @@ print(id)
 ```
 
 ## Test shot retrieval (hardcoded player ID)
+
+Usage : récupérer un jeu de tirs via l’API NBA pour tester le format des données brutes.
+
+Ce bloc envoie la requête API et récupère les tirs d’un joueur pour une saison donnée.
 
 ```{r}
 # LeBron James player ID = 2544 (hardcoded to bypass get_player_id)
@@ -54,11 +62,13 @@ resp <- httr::GET(
     `Accept-Language`    = "en-US,en;q=0.9",
     `Connection`         = "keep-alive"
   ),
-  httr::timeout(0)
+  httr::timeout(10)
 )
 
 cat("HTTP status:", httr::status_code(resp), "\n")
 ```
+
+Ce bloc transforme la réponse JSON en tableau de données exploitable.
 
 ```{r}
 # parse only if request succeeded
@@ -72,9 +82,13 @@ head(raw[, c("PLAYER_NAME", "GAME_ID", "GAME_DATE", "LOC_X", "LOC_Y", "SHOT_MADE
 
 ```
 
-##### Cette section charge les fonctions NBA personnalisées et analyse la distribution des tirs de Giannis Antetokounmpo lors de la saison 2019.Les données brutes sont d'abord récupérées puis divisées en deux sous-ensembles,les tirs réussis et les tirs manqués. Un graphique de profondeur directionnel est ensuite construit avec 250 directions, puis les tirs sont classés et visualisés sous forme de diagrammes en bâtons.
+Usage : calculer les profondeurs directionnelles et comparer les tirs réussis et manqués pour un joueur donné.
 
 ## Test nba_data
+
+Usage : produire une première visualisation de profondeur directionnelle à partir des tirs d’un joueur.
+
+Ce bloc charge les bibliothèques et calcule les profondeurs directionnelles pour un joueur donné.
 
 ```{r}
 library(ggplot2)
@@ -89,6 +103,8 @@ library(cowplot)
 library(transport)
 library(curveDepth)
 ```
+
+Ce bloc récupère les tirs d’un joueur et construit les objets de profondeur associés pour une première analyse.
 
 ```{r}
 getwd()
@@ -110,9 +126,13 @@ shots <- nba_data(Player = "stephen curry", season = 2019)
 
 ##### Cette ligne identifie le tir réussi le plus central parmi les données en utilisant la profondeur directionnelle calculée précédemment, en extrayant le premier élément le plus profond à partir des valeurs YvsY de la figure.
 
+Ce bloc identifie le tir réussi le plus central selon la profondeur calculée.
+
 ```{r}
 deepest_match(p_made,figure$YvsY, no = 1) 
 ```
+
+Ce bloc filtre les tirs d’une date précise pour inspecter un match particulier.
 
 ```{r}
 shots[shots$dateGame == "20190407" &shots$SHOT_MADE=="TRUE" , ]
@@ -120,25 +140,35 @@ shots[shots$dateGame == "20190407" &shots$SHOT_MADE=="TRUE" , ]
 
 ##### Ces deux lignes visualisent sur le terrain de basketball le tir réussi le plus central en vert et le tir manqué le plus central en rouge, en se basant sur les profondeurs directionnelles calculées précédemment.
 
+Ce bloc affiche les tirs les plus centraux sur le terrain pour les catégories réussis et manqués.
+
 ```{r}
- plot_deepest_match(p_made, figure$YvsY, no = 1, col = "green2")
-  plot_deepest_match(p_missed, figure$XvsX, no = 1, col = "red2")
+plot_deepest_match(p_made, figure$YvsY, no = 1, col = "green2")
+plot_deepest_match(p_missed, figure$XvsX, no = 1, col = "red2")
 ```
+
+Ce bloc visualise la distribution globale des tirs sur le terrain pour la saison.
 
 ```{r}
 plot_season2(shots,shots$LOC_X, shots$LOC_Y)
 ```
+
+Ce bloc récupère le tir le plus profond identifié précédemment pour l’examiner plus en détail.
 
 ```{r}
 deep_match = deepest_match(p_made, figure$YvsY, no =1 )
 deep_match
 ```
 
+Ce bloc affiche ce tir spécifique sur le terrain pour en comprendre la localisation.
+
 ```{r}
 source("../R/nba-functions.R")
 plot_match(data,deep_match$idmatch)
 #data[deep_match$idmatch]
 ```
+
+Ce bloc cherche les matchs extrêmes à partir des profondeurs les plus marquées.
 
 ```{r}
 # date des outliers
@@ -153,6 +183,8 @@ plot_match2(p_made,names(data)[deepesty[2]])
 
 ##### Cette section calcule les profondeurs directionnelles des tirs pour trois joueurs, Bam Adebayo, Giannis Antetokounmpo et Stephen Curry, tous sur la saison 2019 Pour chaque joueur, les données de tirs sont récupérées, traitées puis les profondeurs sont calculées avec 250 directions via la fonction depth_all_matches. Les résultats sont stockés dans une liste nommée par le nom de chaque joueur pour faciliter les comparaisons ultérieures.
 
+Ce bloc calcule les profondeurs de tir pour plusieurs joueurs afin de les comparer entre eux.
+
 ```{r}
 # --- joueurs et saisons ------------------------------------------------------
 depths_by_player <- lapply(data_by_player, function(i) {
@@ -166,9 +198,36 @@ depths_by_player <- lapply(data_by_player, function(i) {
   depths
 })
 
-# labels <- paste0(players, "\n(", seasons, ")")
-#labels <- paste0(players)
-#names(depths_by_player) <- labels
+
+source('../R/nba_functions_database.R', chdir = TRUE)
+year <- 2019
+
+files <- c(
+  "Bam_Adebayo_2018_2024.csv",           #1
+  "Stephen_Curry_2015_2022.csv" ,         #2
+  "Klay_Thompson_2015_2024.csv",         #3
+  "Draymond_Green_2015_2024.csv",        #4
+  "Kyle_Korver_2014_2020.csv",           #5
+  "James_Harden_2015_2024.csv",          #6
+  "Evan_Fournier_2015_2024.csv",         #7
+  "Anthony_Davis_2015_2025.csv",         #8
+  "Giannis_Antetokounmpo_2015_2024.csv", #9
+  "Jarrett_Allen_2018_2024.csv",         #10
+  "Alex_Caruso_2018_2024.csv",           #11
+  "Kevin_Durant_2015_2024.csv",          #12
+  "LeBron_James_2015_2024.csv",          #13
+  "Joel_Embiid_2017_2022.csv"          #14
+)
+setwd("../data/csv_data")
+data_by_player <- lapply(files, function(f) {
+  nba_data_depth(
+    nba_data_csv(f, year)
+  )
+})
+names(data_by_player) <- gsub("_\\d{4}_\\d{4}\\.csv$", "", files)
+names(data_by_player) <- gsub("_", " ", names(data_by_player))
+
+
 
 ```
 
@@ -195,32 +254,15 @@ abline(h = 0.5, lty = 2, col = "grey50")
 # dev.off()
 ```
 
+Ce bloc affiche les résultats de profondeur pour un joueur particulier.
+
 ```{r}
 depths_by_player[[3]]
 ```
 
-```{r}
-year = 2019
-players <- list(
-  list(name = "Bam Adebayo",         season = year),
-  list(name = "Giannis Antetokounmpo", season = year),
-  list(name = "stephen curry",           season = year),
-  #list(name = "Nikola Jokić",           season = year),
-  #list(name = "Kevin Durant",           season = year),
-  list(name = "Klay Thompson",           season = year),
-  list(name = "Draymond Green",           season = year),
-  list(name = "Kyle Korver",           season = year),
-  list(name = "Nic Claxton",           season = year),
-  list(name = "James Harden",           season = year)
-)
 
-shots_by_player <- lapply(players, function(p) {
-  nba_data(Player = p$name, season = p$season)
-})
-names(shots_by_player) <- sapply(players, function(p) p$name)
 
-data_by_player<- lapply(shots_by_player, nba_data_depth)
-```
+Ce bloc charge les données à partir des fichiers CSV de la base locale.
 
 ```{r}
 
@@ -241,27 +283,37 @@ files <- c(
   "Alex_Caruso_2018_2024.csv",           #11
   "Kevin_Durant_2015_2024.csv",          #12
   "LeBron_James_2015_2024.csv",          #13
-  "Joel_Embiid_2017_2022.csv"            #14
+  "Joel_Embiid_2017_2022.csv"          #14
 )
-setwd("../data")
+setwd("../data/csv_data")
 data_by_player <- lapply(files, function(f) {
   nba_data_depth(
     nba_data_csv(f, year)
   )
 })
+
+shots_by_player <- lapply(files, function(f) {
+    nba_data_csv(f, year)
+})
 names(data_by_player) <- gsub("_\\d{4}_\\d{4}\\.csv$", "", files)
 names(data_by_player) <- gsub("_", " ", names(data_by_player))
 ```
+
+Ce bloc sélectionne le tir le plus profond pour un joueur à partir des données chargées.
 
 ```{r}
 d_m <- deepest_match(data_by_player[[1]],depths_by_player[[1]] , no = 1)
 ```
 
+Ce bloc affiche un tir spécifique pour une comparaison visuelle.
+
 ```{r}
 plot_deepest_match(data_by_player[[3]],depths_by_player[[3]] , no = 62)
 ```
 
-Ce code genere le graphique des matchs de stephen curry et adebyo cote a cote sans distinction des processus des tirs marqué et manquée; il sert a visualiser les intensité des processus.
+Usage : comparer visuellement les profils de tir de deux joueurs sur la saison.
+
+Ce bloc génère une figure comparative de la répartition des tirs pour deux joueurs.
 
 ```{r}
 postscript("../figures/point_process.eps",
@@ -281,6 +333,8 @@ par(mar = c(0,0, 0, 0))
 dev.off()
 ```
 
+Ce bloc génère une figure de comparaison de la saison complète pour deux joueurs.
+
 ```{r}
 postscript("../figures/MPP.eps",
            horizontal = FALSE,
@@ -299,6 +353,8 @@ dev.off()
 ```
 
 ##### Ce code génère et exporte en fichier EPS une figure composée de six graphiques disposés en deux lignes. La première ligne représente le tir le plus central et la seconde le tir le moins central pour chacun des trois joueurs, permettant ainsi une comparaison visuelle des profils de tir extrêmes entre Bam Adebayo, Giannis Antetokounmpo et Stephen Curry.
+
+Ce bloc exporte une figure regroupant les tirs les plus centraux et les moins centraux pour plusieurs joueurs.
 
 ```{r}
   postscript("../figures/deepest_matches.eps",
@@ -327,11 +383,15 @@ dev.off()
   dev.off()
 ```
 
+Ce bloc affiche la saison complète d’un joueur pour obtenir une vue d’ensemble.
+
 ```{r}
 plot_season(shots_by_player[[5]])
 ```
 
 ##### Ce code génère et exporte en fichier EPS une figure composée de trois graphiques côte à côte représentant la totalité des tirs de la saison pour chacun des trois joueurs, offrant une vue d'ensemble de leur distribution de tirs sur le terrain.
+
+Ce bloc exporte une figure comparant la saison complète de plusieurs joueurs.
 
 ```{r}
 postscript("../figures/deepest_matches_marqued.eps",
@@ -351,6 +411,8 @@ postscript("../figures/deepest_matches_marqued.eps",
 ```
 
 ##### Ce code génère deux fichiers EPS distincts pour Giannis Antetokounmpo. Le premier représente les trois tirs réussis les plus centraux en vert, tandis que le second représente les trois tirs manqués les moins centraux en rouge. Les profondeurs directionnelles calculées précédemment sont utilisées pour classer et sélectionner ces tirs dans chaque catégorie.
+
+Ce bloc exporte les trois tirs réussis les plus centraux pour Adebayo.
 
 ```{r}
 postscript("../figures/top_made_adebayo.eps",
@@ -393,6 +455,8 @@ p3 <-plot_deepest_match(p_missed, figure$XvsX, no =  3, col = "red2")
 dev.off()
 ```
 
+Ce bloc exporte les trois tirs réussis les plus centraux pour Giannis.
+
 ```{r}
 postscript("../figures/top_made_giannis.eps",
            horizontal = FALSE,
@@ -432,6 +496,8 @@ p3 <-plot_deepest_match(p_missed, figure$XvsX, no = 3, col = "red2")
 (p1 | p2 | p3) & theme(aspect.ratio = 1.2,plot.margin = unit(c(0, 0, 0, 0), "mm"))
 dev.off()
 ```
+
+Ce bloc exporte les trois tirs réussis les plus centraux pour Curry.
 
 ```{r}
 postscript("../figures/top_made_curry.eps",
@@ -473,6 +539,8 @@ p3 <-plot_deepest_match(p_missed, figure$XvsX, no = 3, col = "red2")
 dev.off()
 ```
 
+Ce bloc applique la procédure de profondeur à chaque joueur de la liste.
+
 ```{r}
 for(i in seq_along(data_by_player)) {
 
@@ -488,92 +556,9 @@ for(i in seq_along(data_by_player)) {
 
 ```
 
-### Test de wilcoxon basé sur les rangs a partir des profondeur
 
-#### Giannis antetokounmpo
 
-```{r}
-p_made = nba_data_depth_made(data_by_player[[6]])
-p_missed = nba_data_depth_missed(data_by_player[[6]])
-curNdirs <- 250
-figure <- ddplot_nba(p_missed, p_made,Ndirs = curNdirs,
-                  parConst1 = -2, parConst2 = 5)
-```
-
-```{r}
-# --- calcul des R(Z; .) --------------------------------------------------
-R_missed <- figure$XvsY  # profondeur des tirs manqués par rapport aux réussis
-R_made   <- figure$YvsY  # profondeur des tirs réussis par rapport aux réussis
-
-# --- calcul de W observé ----------------------------------------------------
-all_R  <- c(R_missed, R_made)
-ranks  <- rank(all_R, ties.method = "first")
-
-n      <- length(R_missed)
-m      <- length(R_made)
-
-W_obs  <- sum(ranks[1:n])  # somme des rangs des tirs manqués
-cat("W_obs =", W_obs, "\n")
-```
-
-```{r}
-# --- reference fixe : tirs reussis originaux ---------------------------------
-# les profondeurs sont calculees une seule fois
-#set.seed(0)
-R_missed <- figure$XvsY  # profondeur des manqués par rapport aux réussis (fixe)
-R_made   <- figure$YvsY  # profondeur des réussis par rapport aux réussis (fixe)
-
-all_R  <- c(R_missed, R_made)
-ranks  <- rank(all_R, ties.method = "first")
-W_obs  <- sum(ranks[1:n])
-
-# --- permutations : on permute uniquement les labels ------------------------
-B      <-5000
-W_perm <- sapply(seq_len(B), function(b) {
-  perm     <- sample(length(all_R))
-  ranks_b  <- rank(all_R[perm], ties.method = "first")
-  sum(ranks_b[1:n])
-})
-
-# --- p-valeur ----------------------------------------------------------------
-p_value <- (sum(W_perm <= W_obs) + 1) / (B + 1)
-cat("W_obs =", W_obs, "\n")
-cat("p-value =", p_value, "\n")
-```
-
-Dans le cas ou la reference change aussi
-
-```{r}
-
-# --- permutations ------------------------------------------------------------
-all_processes <- c(p_missed, p_made)
-n             <- length(p_missed)
-m             <- length(p_made)
-
-B = n
-
-W_perm <- sapply(seq_len(B), function(b) {
-  perm        <- sample(length(all_processes))
-  missed_b    <- all_processes[perm[1:n]]
-  made_b      <- all_processes[perm[(n+1):(n+m)]]
-  
-  # recalcul des profondeurs
-  figure_b    <- ddplot_nba(missed_b, made_b, Ndirs = curNdirs,
-                             parConst1 = -2, parConst2 = 5)
-  
-  R_missed_b  <- figure_b$XvsY
-  R_made_b    <- figure_b$YvsY
-  
-  all_R_b     <- c(R_missed_b, R_made_b)
-  ranks_b  <- rank(all_R_b, ties.method = "first")
-  sum(ranks_b[1:n])
-})
-
-# --- p-valeur ----------------------------------------------------------------
-p_value <- (sum(W_perm <= W_obs) + 1) / (B + 1)
-cat("W_obs =", W_obs, "\n")
-cat("p-value =", p_value, "\n")
-```
+Ce bloc définit un thème visuel commun pour les graphiques.
 
 ```{r}
     t = theme(
@@ -588,6 +573,10 @@ cat("p-value =", p_value, "\n")
 ```
 
 # Graphique par joueur
+
+Usage : produire une synthèse visuelle par joueur avec histogramme, vue de saison et DD-plot.
+
+Ce bloc définit une fonction pour produire un DD-plot annoté avec une p-valeur.
 
 ```{r}
 ddplot_nba_gg <- function(xx, yy, Ndirs, col = c("red", "green4"),
@@ -620,6 +609,8 @@ ddplot_nba_gg <- function(xx, yy, Ndirs, col = c("red", "green4"),
 }
 ```
 
+Ce bloc construit l’histogramme du nombre de tirs par match pour un joueur.
+
 ```{r}
 # --- ligne 1 colonne 1 : histogramme des cardinalités ------------------------
 cardinalities <- sapply(data_by_player[[5]], function(match) {
@@ -631,10 +622,12 @@ p_hist <- ggplot(data.frame(n = cardinalities), aes(x = n)) +
   scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
   xlab("Nombre de tirs par match") +
   ylab("Fréquence") +
-  t
+  t #t c'est le theme definit pus haut
 
 p_hist
 ```
+
+Ce bloc affiche la vue globale de la saison d’un joueur.
 
 ```{r}
 # --- ligne 1 colonne 2 : vue globale de la saison ----------------------------
@@ -642,59 +635,16 @@ p_season <- plot_season2(shots_by_player[[3]])
 p_season
 ```
 
-```{r}
-set.seed(0)
-p_made = nba_data_depth_made(data_by_player[[5]])
-p_missed = nba_data_depth_missed(data_by_player[[5]])
 
-# p_missed <- nba_data_depth_made(data_by_player[[5]])
-# p_made <- nba_data_depth_made(data_by_player[[5]])
-
-curNdirs <- 250
-figure <- ddplot_nba(p_missed, p_made,Ndirs = curNdirs,
-                  parConst1 = -2, parConst2 = 5, package = T)
-#=======================================================
-R_missed <- figure$XvsY  # profondeur des tirs manqués par rapport aux réussis
-R_made   <- figure$YvsY  # profondeur des tirs réussis par rapport aux réussis
-
-# --- calcul de W observé ----------------------------------------------------
-all_R  <- c(R_missed, R_made)
-ranks  <- rank(all_R, ties.method = "first")
-
-n      <- length(R_missed)
-m      <- length(R_made)
-
-W_obs  <- sum(ranks[1:n])  # somme des rangs des tirs manqués
-cat("W_obs =", W_obs, "\n")
-#=======================================================
-# --- reference fixe : tirs reussis originaux ---------------------------------
-# les profondeurs sont calculees une seule fois
-R_missed <- figure$XvsY  # profondeur des manqués par rapport aux réussis (fixe)
-R_made   <- figure$YvsY  # profondeur des réussis par rapport aux réussis (fixe)
-
-all_R  <- c(R_missed, R_made)
-ranks  <- rank(all_R, ties.method = "first")
-W_obs  <- sum(ranks[1:n])
-
-# --- permutations : on permute uniquement les labels ------------------------
-B      <-5000
-W_perm <- sapply(seq_len(B), function(b) {
-  perm     <- sample(length(all_R))
-  ranks_b  <- rank(all_R[perm], ties.method = "first")
-  sum(ranks_b[1:n])
-})
-
-# --- p-valeur ----------------------------------------------------------------
-p_value <- (sum(W_perm <= W_obs) + 1) / (B + 1)
-cat("W_obs =", W_obs, "\n")
-cat("p-value =", p_value, "\n")
-```
+Ce bloc affiche le match le plus typique parmi les tirs réussis.
 
 ```{r}
 # --- p4 : match le plus profond des tirs réussis -----------------------------
 p4 <- plot_deepest_match(p_made, figure$YvsY, no = 1, col = "green2")
 p4
 ```
+
+Ce bloc représente les profondeurs des tirs réussis sous forme de barres ordonnées.
 
 ```{r}
 # --- p5 : profondeurs ordonnées des tirs réussis -----------------------------
@@ -710,6 +660,8 @@ p5 <- ggplot(data.frame(x = seq_along(figure$YvsY),
 p5
 ```
 
+Ce bloc représente les profondeurs des tirs manqués sous forme de barres ordonnées.
+
 ```{r}
 deepestx <- order(figure$XvsX)
 
@@ -723,6 +675,8 @@ p6 <- ggplot(data.frame(x = seq_along(figure$XvsX),
 p6
 ```
 
+Ce bloc assemble les différents graphiques de synthèse pour un joueur.
+
 ```{r}
 library(patchwork)
 result   <- ddplot_nba_gg(p_missed, p_made, Ndirs = curNdirs,
@@ -733,6 +687,10 @@ p_ddplot <- result$plot
 (p_hist | p_season |p_ddplot  ) /
 (p4     | p5    | p6)
 ```
+
+Ce bloc définit une fonction réutilisable pour résumer un joueur avec histogramme, vue de saison et DD-plot.
+
+Ce bloc définit une fonction réutilisable pour résumer un joueur avec histogramme, vue de saison et DD-plot.
 
 ```{r}
 summary_player <- function(shots, data, player_name,
@@ -762,21 +720,8 @@ summary_player <- function(shots, data, player_name,
   figure <- ddplot_nba(p_missed, p_made, Ndirs = Ndirs,
                        parConst1 = parConst1, parConst2 = parConst2)
   
-  # --- test de Wilcoxon ------------------------------------------------------
-  R_missed <- figure$XvsY
-  R_made   <- figure$YvsY
-  all_R    <- c(R_missed, R_made)
-  ranks    <- rank(all_R, ties.method = "first")
-  n        <- length(R_missed)
-  m        <- length(R_made)
-  W_obs    <- sum(ranks[1:n])
-  
-  W_perm <- sapply(seq_len(B), function(b) {
-    perm    <- sample(length(all_R))
-    ranks_b <- rank(all_R[perm], ties.method = "first")
-    sum(ranks_b[1:n])
-  })
-  p_value <- (sum(W_perm <= W_obs) + 1) / (B + 1)
+  # --- test de comparaison ------------------------------------------------------
+  p_value <- no_pool_method_two_test_ref_fix(p_missed, p_made)$p_value  #veiller a  lancer la fonction elle est definit plus bas
   
   # --- p3 : DD-plot avec p-valeur --------------------------------------------
   depthsVsX <- c(figure$XvsX, figure$YvsX)
@@ -848,36 +793,41 @@ summary_player(shots_by_player[[4]], data_by_player[[4]],
                Ndirs = 250, B = 500, save = TRUE)
 ```
 
+
+Ce bloc applique la fonction de résumé à plusieurs joueurs et assemble les graphiques en une vue globale.
+
 ```{r}
-players <- 1:4
-set.seed(0)
+  players <- files[c(1,2,9,6)]
+  set.seed(0)
 
-plots_by_player <- lapply(seq_along(players), function(i) {
-  
-  # --- graphique du joueur ---------------------------------------------------
-  p <- summary_player(shots_by_player[[i]], data_by_player[[i]],
-                      player_name = names(data_by_player)[i],
-                      Ndirs = 250, B = 5000, save = FALSE)
-  
-  # --- titre -----------------------------------------------------------------
-  title <- ggplot() +
-    annotate("text", x = 0.5, y = 0.5,
-             label = names(data_by_player)[i],
-             size = 6, fontface = "bold") +
-    theme_void()
-  
-  # --- assemblage joueur -----------------------------------------------------
-  title / p + plot_layout(heights = c(0.05, 1))
-})
+  plots_by_player <- lapply(seq_along(players), function(i) {
+    
+    # --- graphique du joueur ---------------------------------------------------
+    p <- summary_player(shots_by_player[[i]], data_by_player[[i]],
+                        player_name = names(data_by_player)[i],
+                        Ndirs = 250, B = 5000, save = FALSE)
+    
+    # --- titre -----------------------------------------------------------------
+    title <- ggplot() +
+      annotate("text", x = 0.5, y = 0.5,
+              label = names(data_by_player)[i],
+              size = 6, fontface = "bold") +
+      theme_void()
+    
+    # --- assemblage joueur -----------------------------------------------------
+    title / p + plot_layout(heights = c(0.05, 1))
+  })
 
-# --- assemblage final --------------------------------------------------------
-final_plot <- wrap_plots(plots_by_player, ncol = 1)
+  # --- assemblage final --------------------------------------------------------
+  final_plot <- wrap_plots(plots_by_player, ncol = 1)
 
-ggsave("../figures/summary_3_players.pdf",
-       plot   = final_plot,
-       width  = 16,
-       height = 8 * length(players))
+  ggsave("../../figures/summary_3_players.pdf",
+        plot   = final_plot,
+        width  = 16,
+        height = 8 * length(players))
 ```
+
+Ce bloc prépare une boucle de comparaison entre tous les joueurs disponibles.
 
 ```{r}
 n_players <- length(data_by_player)
@@ -896,6 +846,8 @@ for(i in seq_len(n_players)){
 ```
 
 # Comparaison made entre joueur
+
+Usage : comparer deux joueurs sur la base de leurs tirs réussis avec des tests de profondeur et de permutation.
 
 ```{r}
 # --- sélection des tirs réussis des deux joueurs ----------------------------
@@ -1470,113 +1422,4 @@ ddplot_bootstrap_fixed_ref <- function(pl_1, pl_2, B = 99) {
   resultat <- ddplot_bootstrap_fixed_ref(pl_1, pl_2, B = 99)
 
 resultat$p_value
-```
-
-```{r}
-# ==============================================================================
-# 1. PRÉPARATION DES DONNÉES ET INITIALISATION
-# ==============================================================================
-# Soit data_by_player ta liste contenant les données des joueurs
-num_players <- length(data_by_player) # Ex: ~60 joueurs
-player_names <- names(data_by_player) # Récupération des noms s'ils existent
-
-if (is.null(player_names)) {
-  player_names <- paste0("Player_", 1:num_players)
-}
-
-# Extraction préalable des profondeurs pour chaque joueur (gain de temps)
-cat("Calcul des profondeurs pour chaque joueur...\n")
-pl_depths <- lapply(data_by_player, function(df) {
-  nba_data_depth_made(df)
-})
-
-# Matrice symétrique pour stocker les p-valeurs
-p_matrix <- matrix(NA, nrow = num_players, ncol = num_players)
-rownames(p_matrix) <- player_names
-colnames(p_matrix) <- player_names
-
-# ==============================================================================
-# 2. BOUCLE DE TEST PAIRWISE (DEUX À DEUX)
-# ==============================================================================
-cat("Lancement des tests d'homogénéité pairwise...\n")
-
-# Calcul uniquement du triangle supérieur pour éviter les doublons
-for (i in 1:(num_players - 1)) {
-  for (j in (i + 1):num_players) {
-    
-    # Test entre le joueur i et le joueur j
-    res <- no_pool_method_two_test_ref_fix(pl_depths[[i]], pl_depths[[j]])
-    
-    # Stockage de la p-valeur
-    p_matrix[i, j] <- res$p_value
-    p_matrix[j, i] <- res$p_value # Matrice symétrique
-  }
-  
-  # Diagonale : comparaison d'un joueur avec lui-même
-  p_matrix[i, i] <- 1
-}
-p_matrix[num_players, num_players] <- 1
-
-cat("Tests terminés avec succès !\n")
-
-# ==============================================================================
-# 3. MISE EN FORME DES RÉSULTATS (DATAFRAME RÉSUMÉ)
-# ==============================================================================
-# Conversion de la matrice en data.frame de paires pour une analyse plus facile
-results_df <- data.frame()
-
-for (i in 1:(num_players - 1)) {
-  for (j in (i + 1):num_players) {
-    results_df <- rbind(results_df, data.frame(
-      Player_1 = player_names[i],
-      Player_2 = player_names[j],
-      p_value  = p_matrix[i, j]
-    ))
-  }
-}
-
-
-# Tri par p-valeur croissante (les joueurs les plus différents en premier)
-results_df <- results_df[order(results_df$p_value), ]
-
-# Affichage des 10 paires les plus différentes
-head(results_df, 10)
-```
-
-```{r}
-# ==============================================================================
-# EXTRACTION DES PAIRES NON SIGNIFICATIVES (processus de tirs similaires)
-# ==============================================================================
-alpha <- 0.05
-
-# 1. Filtrage sur les p-valeurs brutes
-paires_similaires <- subset(results_df, p_value > alpha)
-
-# Affichage du nombre total de paires similaires trouvées
-cat(sprintf("Nombre total de paires de joueurs comparées : %d\n", nrow(results_df)))
-cat(sprintf("Nombre de paires non significatives (p > %.2f) : %d (%.1f%%)\n", 
-            alpha, nrow(paires_similaires), 100 * nrow(paires_similaires) / nrow(results_df)))
-cat(sprintf("Nombre de paires non significatives après correction BH (p_adj > %.2f) : %d (%.1f%%)\n\n", 
-            alpha, nrow(paires_similaires_adj), 100 * nrow(paires_similaires_adj) / nrow(results_df)))
-
-# Affichage des premières paires avec les p-valeurs les plus élevées (les plus similaires)
-paires_similaires <- paires_similaires[order(-paires_similaires$p_value), ]
-head(paires_similaires, 15)
-```
-
-```{r}
-#install.packages("igraph")
-library(igraph)
-
-# Création du réseau des joueurs ayant des processus identiques
-adj_matrix <- p_matrix > alpha
-diag(adj_matrix) <- 0
-
-graph_simil <- graph_from_adjacency_matrix(adj_matrix, mode = "undirected")
-
-# Visualisation simple du réseau
-plot(graph_simil, 
-     vertex.size = 4, asp = 0,
-     vertex.label.cex = 0.6,
-     vertex.color = "yellow")
 ```

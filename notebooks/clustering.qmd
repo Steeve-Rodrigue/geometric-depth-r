@@ -4,13 +4,17 @@ format: html
 editor: visual
 ---
 
+Ce bloc charge les bibliothèques et les fonctions utiles pour l’analyse des tirs et du clustering.
+
 ```{r warning=FALSE, message=FALSE}
 library(httr)
 library(jsonlite)
 library(dplyr)
 
-source("../R/nba-functions.R") #add echo = T to see more details source("./geometric-depth-r/R/nba-functions.R")
+source("../R/nba-functions.R") # veiller a configurer l'environnement de travail( c'est le dossier notebook)
 ```
+
+Ce bloc ajoute les packages graphiques et de statistique nécessaires pour visualiser et comparer les processus de tirs.
 
 ```{r}
 library(ggplot2)
@@ -29,6 +33,8 @@ library(curveDepth)
 library(spatstat)
 ```
 
+Ce bloc prépare la liste de joueurs et les saisons à analyser.
+
 ```{r}
 year = 2019
 players <- list(
@@ -44,9 +50,8 @@ names(shots_by_player) <- sapply(players, function(p) p$name)
 data_by_player<- lapply(shots_by_player, nba_data_depth)
 ```
 
-```{r}
- shots_by_player[[1]][shots_by_player[[1]]$SHOT_MADE == T,]
-```
+
+Ce bloc charge les fichiers CSV de la base locale et construit les objets de tirs par joueur.
 
 ```{r}
 setwd("../data")
@@ -118,7 +123,7 @@ files <- c(
 
   
 )
-setwd("../data")
+setwd("../data/csv_data")
 shots_by_player <- lapply(files, function(f) {
     nba_data_csv(f, year)
 })
@@ -135,6 +140,8 @@ names(data_by_player) <- gsub("_", " ", names(data_by_player))
 names(all_shots_made_by_player) <- gsub("_\\d{4}_\\d{4}\\.csv$", "", files)
 names(all_shots_made_by_player) <- gsub("_", " ", names(data_by_player))
 ```
+
+Ce bloc extrait les tirs réussis de chaque joueur pour les utiliser comme données de processus ponctuels.
 
 ```{r}
 
@@ -163,6 +170,8 @@ data_typic_made_all_players <- lapply(data_made_by_player, function(joueur_data)
 names(data_typic_made_all_players) <- names(data_made_by_player)
 ```
 
+Ce bloc transforme les matchs typiques en tableaux de coordonnées exploitables pour les analyses spatiales.
+
 ```{r}
 shots_made_by_player <- lapply(data_typic_made_all_players, function(joueur_list) {
   joueur_df <- do.call(rbind, lapply(names(joueur_list), function(id) {
@@ -183,6 +192,8 @@ shots_made_by_player <- lapply(data_typic_made_all_players, function(joueur_list
 names(shots_made_by_player) <- names(data_typic_made_all_players)
 ```
 
+Ce bloc compare visuellement deux densités de tirs sur le terrain.
+
 ```{r}
 library(patchwork)
 p01 <- plot_density_court(shots_made_by_player[[10]] , sigma = 4)
@@ -190,6 +201,8 @@ p02 <- plot_density_court(shots_made_by_player[[12]] , sigma = 4)
 
 (p01 + p02)
 ```
+
+Ce bloc affiche deux cartes de saison pour une comparaison rapide des profils de tirs.
 
 ```{r}
 library(patchwork)
@@ -204,6 +217,8 @@ p2 <- plot_season2(shots_made_by_player[[8]])
 ## Distances entre processus
 
 ## distance entre kde normalisée
+
+Ce bloc définit une fonction de distance basée sur la différence entre deux KDE normalisées.
 
 ```{r}
 library(spatstat)
@@ -230,6 +245,8 @@ evaluer_distance(pl_2, pl_1)
 
 ## distance entre kde
 
+Ce bloc définit une fonction de distance basée sur la différence entre deux KDE non normalisées.
+
 ```{r}
 library(spatstat)
 
@@ -252,6 +269,8 @@ evaluer_distance(pl_2, pl_1)
 ```
 
 ## distance wasserstein
+
+Ce bloc calcule une distance de Wasserstein entre deux distributions de tirs.
 
 ```{r}
 library(spatstat)
@@ -280,6 +299,8 @@ evaluer_distance(pl_2, pl_1)
 
 ## distance baddeley
 
+Ce bloc définit une distance de Baddeley pour comparer deux patrons spatiaux de tirs.
+
 ```{r}
 library(spatstat)
 
@@ -305,6 +326,8 @@ evaluer_distance(pl_2, pl_1, c_cutoff = 5)
 
 ## Distance entre match kde
 
+Ce bloc définit une distance entre deux matchs individuels à partir de leurs KDE.
+
 ```{r}
 library(spatstat)
 
@@ -329,6 +352,8 @@ evaluer_distance_matchs <- function(match_A, match_B, sigma = 3, fenetre_terrain
 
 ## distance entre match baddeley
 
+Ce bloc définit une distance de Baddeley entre deux matchs individuels.
+
 ```{r}
 library(spatstat)
 
@@ -344,6 +369,8 @@ evaluer_distance_matchs <- function(match_A, match_B, c_cutoff = 5, fenetre_terr
   return(distance_baddeley)
 }
 ```
+
+Ce bloc construit la matrice de distances entre joueurs à partir des fonctions définies ci-dessus.
 
 ```{r}
 n <- length(shots_made_by_player)
@@ -374,6 +401,8 @@ D_joueur
 #### Estimation de l'intensité
 
 ##### Moyennes des intensités des matchs de joueurs
+
+Ce bloc estime l’intensité moyenne des matchs d’un joueur à partir de leurs KDE.
 
 ```{r}
 library(spatstat)
@@ -435,6 +464,8 @@ heatmap(D)
 
 #### Intensité de la plus profonde
 
+Ce bloc estime la densité associée au match le plus typique de chaque joueur.
+
 ```{r}
 set.seed(42)
 library(spatstat)
@@ -488,6 +519,8 @@ for (i in 1:(n - 1)) {
 heatmap(D)
 ```
 
+Ce bloc définit un thème graphique commun pour les figures de clustering.
+
 ```{r}
 mon_theme<- theme(
   panel.background = element_rect(fill = "white", colour = NA),
@@ -497,6 +530,8 @@ mon_theme<- theme(
   legend.key       = element_rect(fill = "white", colour = NA)
 )
 ```
+
+Ce bloc produit une représentation MDS des joueurs à partir de la matrice de distances.
 
 ```{r}
 library(ggplot2)
@@ -526,6 +561,8 @@ ggplot(mds_df, aes(x = Dim1, y = Dim2, label = Joueur)) +
   ) + mon_theme
 ```
 
+Ce bloc construit le dendrogramme hiérarchique des joueurs.
+
 ```{r}
 dev.new()
 #rownames(dists) <- names(data_by_player)
@@ -541,12 +578,16 @@ names(cluster_assignments) <- names(data_by_player)
 
 ```
 
+Ce bloc compare plusieurs méthodes de linkage et mesure leur cohérence avec la distance utilisée.
+
 ```{r}
 for (m in c("ward.D2","average","complete","single","mcquitty")) {
   hc_m <- hclust(as.dist(D_joueur), method = m)
   cat(m, ":", cor(as.dist(D_joueur), cophenetic(hc_m)), "\n")
 }
 ```
+
+Ce bloc inspecte les hauteurs de fusion et repère un saut possible pour choisir le nombre de clusters.
 
 ```{r}
 
@@ -672,6 +713,8 @@ if (requireNamespace("mclust", quietly = TRUE)) {
 }
 ```
 
+Ce bloc compare deux coupes hiérarchiques obtenues avec différents linkages.
+
 ```{r}
 #X <- scale(feats[, c("rim","short_mid","long_mid","three","mean_dist")])
 #d <- dist(X)
@@ -695,6 +738,8 @@ mean(sil(cl_a, d), na.rm = T)
 # (via le calcul manuel d'ARI qu'on a utilisé plus tôt, ou library(mclust)::adjustedRandIndex)
 ```
 
+Ce bloc projette les joueurs dans un espace 2D avec leurs clusters pour visualiser la typologie.
+
 ```{r}
 set.seed(42)
 dev.new()
@@ -703,8 +748,8 @@ dev.new()
 
 rownames(D_joueur) <- names(data_by_player)
 D <- D_joueur
-#cluster <- cluster_assignments
-cluster <- partition_finale
+cluster <- cluster_assignments
+#cluster <- partition_finale
 proj_mds <- cmdscale(D, k = 2)
 plot_df <- data.frame(
   Dim1    = proj_mds[, 1],
@@ -724,6 +769,8 @@ ggplot(plot_df, aes(x = Dim1, y = Dim2, color = Cluster, label = Match)) +
   ) +
   scale_color_brewer(palette = "Set1") + mon_theme
 ```
+
+Ce bloc met en évidence un joueur particulier dans la projection MDS pour faciliter l’interprétation.
 
 ```{r}
 library(ggplot2)
@@ -777,6 +824,105 @@ ggplot(plot_df, aes(x = Dim1, y = Dim2, color = Cluster)) +
   scale_color_brewer(palette = "Set1") + 
   mon_theme
 ```
+
+```{r}
+library(patchwork)
+
+clusters <- sort(unique(cluster_assignments))
+plots_clusters <- lapply(clusters, function(cl){
+  
+  matchs_cluster <- matchs_joueur[names(partition)[partition == cl]]
+  shots_cluster <- do.call(
+    rbind,
+    lapply(names(matchs_cluster), function(id){
+      
+      match <- matchs_cluster[[id]]
+      if (is.null(match$coords) || nrow(match$coords) == 0)
+        return(NULL)
+      data.frame(
+        idGame    = id,
+        dateGame  = match$date,
+        LOC_X     = match$coords[,1],
+        LOC_Y     = match$coords[,2],
+        SHOT_MADE = TRUE
+      )
+    })
+  )
+  
+  ## Plot
+  plot_season(shots_cluster) +
+    ggtitle(
+      paste0(
+        "Cluster ", cl,
+        "\n",
+        length(matchs_cluster), " matches"
+      )
+    )
+})
+
+wrap_plots(plots_clusters, ncol =2)
+```
+
+```{r}
+curNdirs = 250
+# --- extraction des processus par cluster ------------------------------------
+cluster_1 <- matchs_joueur[names(partition)[partition == 1]]
+cluster_2 <- matchs_joueur[names(partition)[partition == 2]]
+
+# --- DD-plot entre les deux clusters -----------------------------------------
+figure_clusters <- ddplot_nba(cluster_1, cluster_2, Ndirs = 250,
+                              parConst1 = -2, parConst2 = 5)
+```
+
+```{r}
+partition_finale <- cluster_assignments
+# --- joueur le plus profond par cluster --------------------------------------
+for (cl in sort(unique(partition_finale))) {
+  
+  # joueurs du cluster
+  joueurs_cl <- names(partition_finale)[partition_finale == cl]
+  
+  # données des joueurs du cluster
+  data_cl <- lapply(shots_made_by_player[joueurs_cl], function(x) {
+    list(
+      coords = as.matrix(x[, c("LOC_X", "LOC_Y")])
+    )
+  })
+  
+  # profondeurs des joueurs du cluster par rapport au cluster
+  depths_cl <- depths.Tukey(data_cl, data_cl,
+                            nDirs     = 250,
+                            subs      = FALSE,
+                            exactEst  = FALSE,
+                            parConst1 = -2,
+                            parConst2 = 5)
+  
+  # joueur le plus profond
+  names(depths_cl) <- joueurs_cl
+  joueur_central   <- names(which.max(depths_cl))
+  
+  cat("Cluster", cl, ":\n")
+  cat("  Joueurs     :", joueurs_cl, "\n")
+  cat("  Plus profond:", joueur_central, "(depth =", max(depths_cl), ")\n\n")
+}
+
+```
+
+```{r}
+library(patchwork)
+
+p1 <- plot_season2(shots_made_by_player[[9]]) 
+
+p2 <- plot_season2(shots_made_by_player[[32]]) 
+p3 <- plot_season2(shots_made_by_player[[35]])
+
+
+
+(p1 + p2 + p3 ) +
+  plot_layout(ncol = 3)
+```
+
+Ce bloc teste plusieurs seuils de profondeur Tukey pour choisir le sous-ensemble de matchs le plus typique.
 
 ```{r}
 
@@ -1107,6 +1253,7 @@ p12 <- plot_match2(matchs_joueur, idMatch = attributes(matchs_joueur)$names[j])
 (p11 + p12)
 
 ```
+# Essai de clustering sur profondeur locale
 
 ## Calcul du voisinage d'un match
 
@@ -1451,101 +1598,4 @@ p11 <- plot_match2(matchs_joueur, idMatch = "21800026")
 p12 <- plot_match2(matchs_joueur, idMatch = "21800929")
 (p11 + p12 )
 
-```
-
-```{r}
-library(patchwork)
-
-clusters <- sort(unique(partition))
-plots_clusters <- lapply(clusters, function(cl){
-  
-  matchs_cluster <- matchs_joueur[names(partition)[partition == cl]]
-  shots_cluster <- do.call(
-    rbind,
-    lapply(names(matchs_cluster), function(id){
-      
-      match <- matchs_cluster[[id]]
-      if (is.null(match$coords) || nrow(match$coords) == 0)
-        return(NULL)
-      data.frame(
-        idGame    = id,
-        dateGame  = match$date,
-        LOC_X     = match$coords[,1],
-        LOC_Y     = match$coords[,2],
-        SHOT_MADE = TRUE
-      )
-    })
-  )
-  
-  ## Plot
-  plot_season(shots_cluster) +
-    ggtitle(
-      paste0(
-        "Cluster ", cl,
-        "\n",
-        length(matchs_cluster), " matches"
-      )
-    )
-})
-
-wrap_plots(plots_clusters, ncol =2)
-```
-
-```{r}
-curNdirs = 250
-# --- extraction des processus par cluster ------------------------------------
-cluster_1 <- matchs_joueur[names(partition)[partition == 1]]
-cluster_2 <- matchs_joueur[names(partition)[partition == 2]]
-
-# --- DD-plot entre les deux clusters -----------------------------------------
-figure_clusters <- ddplot_nba(cluster_1, cluster_2, Ndirs = 250,
-                              parConst1 = -2, parConst2 = 5)
-```
-
-```{r}
-partition_finale <- cluster_assignments
-# --- joueur le plus profond par cluster --------------------------------------
-for (cl in sort(unique(partition_finale))) {
-  
-  # joueurs du cluster
-  joueurs_cl <- names(partition_finale)[partition_finale == cl]
-  
-  # données des joueurs du cluster
-  data_cl <- lapply(shots_made_by_player[joueurs_cl], function(x) {
-    list(
-      coords = as.matrix(x[, c("LOC_X", "LOC_Y")])
-    )
-  })
-  
-  # profondeurs des joueurs du cluster par rapport au cluster
-  depths_cl <- depths.Tukey(data_cl, data_cl,
-                            nDirs     = 250,
-                            subs      = FALSE,
-                            exactEst  = FALSE,
-                            parConst1 = -2,
-                            parConst2 = 5)
-  
-  # joueur le plus profond
-  names(depths_cl) <- joueurs_cl
-  joueur_central   <- names(which.max(depths_cl))
-  
-  cat("Cluster", cl, ":\n")
-  cat("  Joueurs     :", joueurs_cl, "\n")
-  cat("  Plus profond:", joueur_central, "(depth =", max(depths_cl), ")\n\n")
-}
-
-```
-
-```{r}
-library(patchwork)
-
-p1 <- plot_season2(shots_made_by_player[[9]]) 
-
-p2 <- plot_season2(shots_made_by_player[[32]]) 
-p3 <- plot_season2(shots_made_by_player[[35]])
-
-
-
-(p1 + p2 + p3 ) +
-  plot_layout(ncol = 3)
 ```
